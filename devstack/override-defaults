@@ -1,0 +1,5 @@
+Q_PLUGIN=ml2
+
+Q_ML2_PLUGIN_MECHANISM_DRIVERS=openvswitch,l2population,bambuk,logger
+
+ML2_L3_PLUGIN=networking_bambuk.l3.l3_bambuk.BambukL3RouterPlugin
