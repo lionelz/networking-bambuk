@@ -1,0 +1,10 @@
+@startuml
+
+[BambukL3RouterPlugin]
+[BambukMechanismDriver]
+[BambukAgentClient]
+[BambukAgent]
+[BambukLocalController]
+[ovs]
+
+@enduml

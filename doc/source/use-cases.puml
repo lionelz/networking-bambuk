@@ -1,0 +1,25 @@
+@startuml
+
+note "Calls from Nova API." as novaapi
+top -up-> (attach interface to vm)
+top -up-> (spawn vm)
+top .up. novaapi
+
+note "Calls from Neutron L3 API." as neutronl3api
+top -left-> (create_router)
+top -left-> (update_router)
+top -left-> (delete_router)
+top -left-> (add_router_interface)
+top -left-> (remove_router_interface)
+top .left. neutronl3api
+
+note "Calls from Neutron L2 API." as neutronl2api
+top .right. neutronl2api
+top -right-> (create port)
+top -right-> (update port)
+top -right-> (create network)
+top -right-> (update network)
+top -right-> (create subnet)
+top -right-> (update subnet)
+
+@enduml
