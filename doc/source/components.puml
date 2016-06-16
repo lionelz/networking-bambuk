@@ -1,10 +1,34 @@
 @startuml
+skinparam componentStyle uml2
 
-[BambukL3RouterPlugin]
-[BambukMechanismDriver]
-[BambukAgentClient]
-[BambukAgent]
-[BambukLocalController]
-[ovs]
+node "Controller" {
+    frame "q-svc" {
+        interface rpc_client
+        [Bambuk L3 Router Plugin] --> rpc_client
+        [Bambuk Mechanism Driver] --> rpc_client
+    }
+}
+
+node "Network Node" {
+    frame "q-l3 (legacy mode)" {
+    }
+    frame "q-agt" {
+    }
+    frame "q-dhcp" {
+    }
+    frame "q-meta" {
+    }
+}
+
+node "Hyper VM" {
+    interface rpc_server
+    interface bambuk_agent
+    rpc_server --> disk
+    disk --> bambuk_agent
+}
+
+rpc_client -> rpc_server
+
+note top of [Bambuk L3 Router Plugin] : extends L3RouterPlugin for legacy behavior
 
 @enduml

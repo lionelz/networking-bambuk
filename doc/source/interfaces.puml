@@ -1,0 +1,10 @@
+@startuml
+
+rpc_client <|-- rest_client
+rpc_client <|-- zeromq_client
+rpc_server <|-- rest_server
+rpc_server <|-- zeromq_server
+mechanism_driver <|-- bambuk_mechanism_driver
+l3_router_plugin <|-- l3_bambuk_router_plugin
+
+@enduml

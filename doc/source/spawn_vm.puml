@@ -1,2 +1,13 @@
 @startuml
+
+cascading -> nova_driver: spawn_vm
+nova_driver -> nova_driver: create vm with 2 provider NICs\n\t(eth0: mngt, eth1: data)
+nova_driver -> nova_driver: start the vm
+loop for each port
+    nova_driver -> neutron_svc: update_port({\n\tport_id,\n\t'binding:host_id': xxx,\n\t'binding:profile': {\n\t\t'provider_mngt_ip': xxx,\n\t\t'provider_data_ip': xxx}})
+    neutron_svc -> bambuk_mechanism_driver: update_port(....)
+    bambuk_mechanism_driver -> bambuk_mechanism_driver: retrieve all port data\n(sg, routers, networks, subnets)
+    bambuk_mechanism_driver -> bambuk_agent: init_port(bambuk_server_ip, port_detail)
+end
+
 @enduml

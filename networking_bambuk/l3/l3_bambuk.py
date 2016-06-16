@@ -62,9 +62,9 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
 
 
     def update_router(self, context, router_id, router):
-        original_router = self.get_router(context, id)
+        original_router = self.get_router(context, router_id)
         result = super(BambukL3RouterPlugin, self).update_router(
-            context, id, router)
+            context, router_id, router)
 
         #TODO: implement it
         update = {}

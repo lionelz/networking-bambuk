@@ -1,0 +1,131 @@
+@startuml
+
+enum entity_type {
+    port
+    subnet
+    network
+    security_group
+    fdb_entry
+}
+
+class vm_connectivity {
+    version
+    ..
+    Map<(entity_type, id), value>
+}
+
+class fdb_entry {
+    segment_id
+    ..
+    network_type
+    ..
+    ports(mac_address, ip_address)
+}
+
+class vm_connectivity_update {
+    entity_type
+    ..
+    id
+    ..
+    value
+}
+
+class port {
+    id
+    ..
+    name
+    ..
+    network
+    ..
+    List<security_group>
+    ..
+    admin_state_up
+    ..
+    mac_address
+    ..
+    fixed_ips
+    ..
+    device_id
+    ..
+    device_owner
+    ..
+    tenant_id
+    ..
+    status
+}
+
+class network {
+    id
+    ..
+    name
+    ..
+    List<subnet>
+    ..
+    admin_state_up
+    ..
+    status
+    ..
+    tenant_id
+}
+
+class subnet {
+    id
+    ..
+    name
+    ..
+    ip_version
+    ..
+    network_id
+    ..
+    cidr
+    ..
+    gateway_ip
+    ..
+    allocation_pools
+    ..
+    dns_nameservers
+    ..
+    host_routers
+    ..
+    tenant_id
+    ..
+    enable_dhcp
+    ..
+    ipv6_ra_mode
+    ..
+    ipv6_address_mode
+}
+
+class security_group {
+    id
+    ..
+    name
+    ..
+    tenant_id
+    ..
+    List<security_group_rule>
+}
+
+class security_group_rule {
+    id
+    ..
+    tenant_id
+    ..
+    security_group_id
+    ..
+    direction
+    ..
+    remote_group_id
+    ..
+    ethertype
+    ..
+    protocol
+    ..
+    port_range_min
+    ..
+    port_range_max
+    ..
+    remote_ip_prefix
+}
+
+@enduml

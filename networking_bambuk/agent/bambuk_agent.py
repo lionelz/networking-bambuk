@@ -1,3 +1,4 @@
+#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -9,16 +10,32 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
 
-from neutron.extensions import portbindings
+
+import abc
 import six
 
-BAMBUK_PORT_BINDING_PROFILE = portbindings.PROFILE
-BAMBUK_PORT_BINDING_PROFILE_PARAMS = [{'provider_ip': six.string_types}]
 
-ML2_SUPPORTED_API_EXTENSIONS_BAMBUK_L3 = [
-    "dvr", "router", "ext-gw-mode",
-    "extraroute", "l3_agent_scheduler",
-    "l3-ha", "router_availability_zone",
-    "dns-integration",
-]
+@six.add_metaclass(abc.ABCMeta)
+class BambukAgent(object):
+
+    @abc.abstractmethod
+    def init(self, configuration):
+        pass
+
+    @abc.abstractmethod
+    def cleanup(self):
+        pass
+
+    @abc.abstractmethod
+    def apply(self, vm_connectivity):
+        pass
+
+    @abc.abstractmethod
+    def update(self, vm_connectivity_update):
+        pass
+
+    @abc.abstractmethod
+    def obj_version(self):
+        pass

@@ -14,13 +14,13 @@
 
 from oslo_log import log
 
+from neutron import context as n_context
 from neutron import manager
 from neutron.api.v2 import attributes
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.plugins.ml2 import driver_api
-from neutron.services.qos import qos_consts
 
 from networking_bambuk._i18n import _LI
 
@@ -50,16 +50,9 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
     methods that are part of the database transaction.
     """
 
-    supported_qos_rule_types = [qos_consts.RULE_TYPE_BANDWIDTH_LIMIT]
-
     def initialize(self):
-        """Perform driver initialization.
-
-        Called after all drivers have been loaded and the database has
-        been initialized. No abstract methods defined below will be
-        called prior to this method being called.
-        """
         LOG.info(_LI("Starting BambukMechanismDriver"))
+        self.subscribe()
 
     @property
     def _plugin(self):
@@ -89,128 +82,25 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
                            resources.SECURITY_GROUP_RULE,
                            events.BEFORE_DELETE)
 
-    def process_create_network(self, plugin_context, data, result):
-        """Process extended attributes for create network.
+    def post_fork_initialize(self, resource, event, trigger, **kwargs):
+        LOG.info(_LI("post_fork_initialize BambukMechanismDriver"))
 
-        :param plugin_context: plugin request context
-        :param data: dictionary of incoming network data
-        :param result: network dictionary to extend
+    def _process_sg_notification(self, resource, event, trigger, **kwargs):
+        sg_id = None
+        sg_rule = None
+        is_add_acl = True
 
-        Called inside transaction context on plugin_context.session to
-        validate and persist any extended network attributes defined by this
-        driver. Extended attribute values must also be added to
-        result.
-        """
-        pass
+        admin_context = n_context.get_admin_context()
+        if resource == resources.SECURITY_GROUP:
+            sg_id = kwargs.get('security_group_id')
+        elif resource == resources.SECURITY_GROUP_RULE:
+            if event == events.AFTER_CREATE:
+                sg_rule = kwargs.get('security_group_rule')
+                sg_id = sg_rule['security_group_id']
+            elif event == events.BEFORE_DELETE:
+                sg_rule = self._plugin.get_security_group_rule(
+                    admin_context, kwargs.get('security_group_rule_id'))
+                sg_id = sg_rule['security_group_id']
+                is_add_acl = False
 
-    def process_create_subnet(self, plugin_context, data, result):
-        """Process extended attributes for create subnet.
 
-        :param plugin_context: plugin request context
-        :param data: dictionary of incoming subnet data
-        :param result: subnet dictionary to extend
-
-        Called inside transaction context on plugin_context.session to
-        validate and persist any extended subnet attributes defined by this
-        driver. Extended attribute values must also be added to
-        result.
-        """
-        pass
-
-    def process_create_port(self, plugin_context, data, result):
-        """Process extended attributes for create port.
-
-        :param plugin_context: plugin request context
-        :param data: dictionary of incoming port data
-        :param result: port dictionary to extend
-
-        Called inside transaction context on plugin_context.session to
-        validate and persist any extended port attributes defined by this
-        driver. Extended attribute values must also be added to
-        result.
-        """
-        pass
-
-    def process_update_network(self, plugin_context, data, result):
-        """Process extended attributes for update network.
-
-        :param plugin_context: plugin request context
-        :param data: dictionary of incoming network data
-        :param result: network dictionary to extend
-
-        Called inside transaction context on plugin_context.session to
-        validate and update any extended network attributes defined by this
-        driver. Extended attribute values, whether updated or not,
-        must also be added to result.
-        """
-        pass
-
-    def process_update_subnet(self, plugin_context, data, result):
-        """Process extended attributes for update subnet.
-
-        :param plugin_context: plugin request context
-        :param data: dictionary of incoming subnet data
-        :param result: subnet dictionary to extend
-
-        Called inside transaction context on plugin_context.session to
-        validate and update any extended subnet attributes defined by this
-        driver. Extended attribute values, whether updated or not,
-        must also be added to result.
-        """
-        pass
-
-    def process_update_port(self, plugin_context, data, result):
-        """Process extended attributes for update port.
-
-        :param plugin_context: plugin request context
-        :param data: dictionary of incoming port data
-        :param result: port dictionary to extend
-
-        Called inside transaction context on plugin_context.session to
-        validate and update any extended port attributes defined by this
-        driver. Extended attribute values, whether updated or not,
-        must also be added to result.
-        """
-        pass
-
-    def extend_network_dict(self, session, base_model, result):
-        """Add extended attributes to network dictionary.
-
-        :param session: database session
-        :param base_model: network model data
-        :param result: network dictionary to extend
-
-        Called inside transaction context on session to add any
-        extended attributes defined by this driver to a network
-        dictionary to be used for mechanism driver calls and/or
-        returned as the result of a network operation.
-        """
-        pass
-
-    def extend_subnet_dict(self, session, base_model, result):
-        """Add extended attributes to subnet dictionary.
-
-        :param session: database session
-        :param base_model: subnet model data
-        :param result: subnet dictionary to extend
-
-        Called inside transaction context on session to add any
-        extended attributes defined by this driver to a subnet
-        dictionary to be used for mechanism driver calls and/or
-        returned as the result of a subnet operation.
-        """
-        pass
-
-    def extend_port_dict(self, session, base_model, result):
-        """Add extended attributes to port dictionary.
-
-        :param session: database session
-        :param base_model: port model data
-        :param result: port dictionary to extend
-
-        Called inside transaction context on session to add any
-        extended attributes defined by this driver to a port
-        dictionary to be used for mechanism driver calls
-        and/or returned as the result of a port operation.
-        """
-        pass

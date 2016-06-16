@@ -1,4 +1,5 @@
 *.pyc
 *~
 .venv
-networking_bambuk.egg-info/
+networking_bambuk.egg-info
+.settings
