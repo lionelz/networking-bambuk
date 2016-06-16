@@ -104,3 +104,30 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
                 is_add_acl = False
 
 
+
+    def update_port_precommit(self, context):
+        port = context.current
+        original_port = context.original
+        # check if profile
+        if 'binding:host_id' in port:
+            #create or update agent
+            
+            agent_state = {
+                'binary': 'neutron-openvswitch-agent',
+                'host': port['binding:host_id'],
+                'configurations': {
+                    'bridge_mappings': '',
+                    'tunnel_types': self.tunnel_types,
+                    'tunneling_ip': self.local_ip,
+# 'l2_population': True,
+# 'arp_responder_enabled': True,
+# 'enable_distributed_routing': True,
+# 'vhostuser_socket_dir': ovs_conf.vhostuser_socket_dir},
+                    'resource_versions': resources.LOCAL_RESOURCE_VERSIONS,
+                    'agent_type': agent_conf.agent_type,
+                    'start_flag': True
+                }
+            }
+            agent_status = self.plugin.create_or_update_agent(
+                context, agent_state)
+

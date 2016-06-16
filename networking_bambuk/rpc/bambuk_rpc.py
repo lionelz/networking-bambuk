@@ -18,14 +18,10 @@ import six
 
 
 @six.add_metaclass(abc.ABCMeta)
-class BambukAgent(object):
+class BambukRpc(object):
 
     @abc.abstractmethod
-    def init(self, configuration):
-        pass
-
-    @abc.abstractmethod
-    def cleanup(self):
+    def agent_state(self, server_conf):
         pass
 
     @abc.abstractmethod
@@ -37,5 +33,5 @@ class BambukAgent(object):
         pass
 
     @abc.abstractmethod
-    def obj_version(self):
+    def version(self):
         pass

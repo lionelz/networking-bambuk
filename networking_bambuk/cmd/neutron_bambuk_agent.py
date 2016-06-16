@@ -12,6 +12,30 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sys
+
+from networking_bambuk._i18n import _LE
+
+from oslo_log import log as logging
+
+from oslo_config import cfg
+
+from oslo_utils import importutils
+
+
+LOG = logging.getLogger(__name__)
+
 
 def main():
-    pass
+
+    try:
+        bambuk_agent = importutils.import_object(
+            cfg.CONF.bambuk.agent)
+        bambuk_rpc = importutils.import_object(
+            cfg.CONF.bambuk.rpc)
+    except (RuntimeError, ValueError) as e:
+        LOG.error(_LE("%s Agent terminated!"), e)
+        sys.exit(1)
+
+    # launch rpc
+    bambuk_rpc.start(bambuk_agent)

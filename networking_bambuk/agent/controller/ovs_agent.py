@@ -61,3 +61,8 @@ class BambukHandler(ofp_handler.OFPHandler):
         msg = ev.msg
         LOG.info('_flow_removed_handler msg= %s' % msg)
 
+
+
+def main():
+    # TODO: run the controller
+    pass

@@ -14,6 +14,12 @@ from oslo_config import cfg
 
 
 bambuk_opts = [
+    cfg.StrOpt('agent',
+               default='networking_bambuk.agent.controller.ovs_agent.BambukHandler',
+               help=_('The agent class implementation')),
+    cfg.StrOpt('rpc',
+               default='networking_bambuk.rpc.zeromq.zeromq_rpc.ZeroMQReceiver',
+               help=_('The rpc receiver class implementation')),
 ]
 
 cfg.CONF.register_opts(bambuk_opts, group='bambuk')
