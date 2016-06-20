@@ -13,7 +13,6 @@
 #
 
 import unittest
-import time
 
 from networking_bambuk.rpc.zeromq import zeromq_rpc
 from networking_bambuk.rpc import bambuk_rpc
@@ -49,7 +48,6 @@ class TestZeroMqRpc(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print('setUpClass')
         bambuk_agent = FakeBambukAgent()
         TestZeroMqRpc._receiver = zeromq_rpc.ZeroMQReceiver(bambuk_agent)
         TestZeroMqRpc._sender = zeromq_rpc.ZeroMQSender('localhost')

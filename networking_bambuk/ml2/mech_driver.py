@@ -112,6 +112,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
         if 'binding:host_id' in port:
             #create or update agent
             
+            # TODO: call the agent to receive the state
             agent_state = {
                 'binary': 'neutron-openvswitch-agent',
                 'host': port['binding:host_id'],
