@@ -23,6 +23,7 @@ from neutron.callbacks import resources
 from neutron.plugins.ml2 import driver_api
 
 from networking_bambuk._i18n import _LI
+from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
 
 LOG = log.getLogger(__name__)
@@ -31,27 +32,11 @@ LOG = log.getLogger(__name__)
 
 class BambukMechanismDriver(driver_api.MechanismDriver):
     """Bambuk ML2 mechanism driver
-
-    A mechanism driver is called on the creation, update, and deletion
-    of networks and ports. For every event, there are two methods that
-    get called - one within the database transaction (method suffix of
-    _precommit), one right afterwards (method suffix of _postcommit).
-
-    Exceptions raised by methods called inside the transaction can
-    rollback, but should not make any blocking calls (for example,
-    REST requests to an outside controller). Methods called after
-    transaction commits can make blocking external calls, though these
-    will block the entire process. Exceptions raised in calls after
-    the transaction commits may cause the associated resource to be
-    deleted.
-
-    Because rollback outside of the transaction is not done in the
-    update network/port case, all data validation must be done within
-    methods that are part of the database transaction.
     """
 
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
+        self._bambuk_client = BambukAgentClient()
         self.subscribe()
 
     @property
@@ -83,52 +68,34 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
                            events.BEFORE_DELETE)
 
     def post_fork_initialize(self, resource, event, trigger, **kwargs):
-        LOG.info(_LI("post_fork_initialize BambukMechanismDriver"))
+        # TODO: implement it
+        pass
 
     def _process_sg_notification(self, resource, event, trigger, **kwargs):
-        sg_id = None
-        sg_rule = None
-        is_add_acl = True
+        # TODO: implement it
+        pass
 
-        admin_context = n_context.get_admin_context()
-        if resource == resources.SECURITY_GROUP:
-            sg_id = kwargs.get('security_group_id')
-        elif resource == resources.SECURITY_GROUP_RULE:
-            if event == events.AFTER_CREATE:
-                sg_rule = kwargs.get('security_group_rule')
-                sg_id = sg_rule['security_group_id']
-            elif event == events.BEFORE_DELETE:
-                sg_rule = self._plugin.get_security_group_rule(
-                    admin_context, kwargs.get('security_group_rule_id'))
-                sg_id = sg_rule['security_group_id']
-                is_add_acl = False
-
-
-
-    def update_port_precommit(self, context):
+    def update_network_postcommit(self, context):
         port = context.current
         original_port = context.original
+        LOG.info("port %s" % port)
+        LOG.info("original_port %s" % original_port)
         # check if profile
-        if 'binding:host_id' in port:
+        if 'binding:host_id' in port and 'binding:profile' in port:
             #create or update agent
-            
-            # TODO: call the agent to receive the state
-            agent_state = {
-                'binary': 'neutron-openvswitch-agent',
-                'host': port['binding:host_id'],
-                'configurations': {
-                    'bridge_mappings': '',
-                    'tunnel_types': self.tunnel_types,
-                    'tunneling_ip': self.local_ip,
-# 'l2_population': True,
-# 'arp_responder_enabled': True,
-# 'enable_distributed_routing': True,
-# 'vhostuser_socket_dir': ovs_conf.vhostuser_socket_dir},
-                    'resource_versions': resources.LOCAL_RESOURCE_VERSIONS,
-                    'agent_type': agent_conf.agent_type,
-                    'start_flag': True
-                }
-            }
+            host_id = port['binding:host_id']
+            profile = port['binding:profile']
+            server_ip = ''
+            provider_mgnt_ip = profile['provider_mgnt_ip']
+            provider_data_ip = profile['provider_data_ip']
+            agent_state = self._bambuk_client.agent_state(
+                {
+                    'host': host_id,
+                    'server_ip': server_ip,
+                    'provider_mgnt_ip': provider_mgnt_ip,
+                    'provider_data_ip': provider_data_ip
+                },
+                provider_mgnt_ip)
             agent_status = self.plugin.create_or_update_agent(
                 context, agent_state)
 

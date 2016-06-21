@@ -18,7 +18,7 @@ from networking_bambuk._i18n import _LE
 
 from oslo_log import log as logging
 
-from oslo_config import cfg
+from networking_bambuk.common import config
 
 from oslo_utils import importutils
 
@@ -29,8 +29,7 @@ LOG = logging.getLogger(__name__)
 def main():
 
     try:
-        bambuk_agent = importutils.import_object(
-            cfg.CONF.bambuk.agent)
+        bambuk_agent = importutils.import_object(config.get_bambuk_agent())
         bambuk_rpc = importutils.import_object(
             cfg.CONF.bambuk.rpc)
     except (RuntimeError, ValueError) as e:

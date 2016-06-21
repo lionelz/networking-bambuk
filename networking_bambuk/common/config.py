@@ -11,15 +11,24 @@
 #    under the License.
 
 from oslo_config import cfg
+from networking_bambuk._i18n import _
 
 
 bambuk_opts = [
-    cfg.StrOpt('agent',
+    cfg.StrOpt('bambuk_agent',
                default='networking_bambuk.agent.controller.ovs_agent.BambukHandler',
                help=_('The agent class implementation')),
-    cfg.StrOpt('rpc',
-               default='networking_bambuk.rpc.zeromq.zeromq_rpc.ZeroMQReceiver',
-               help=_('The rpc receiver class implementation')),
+    cfg.StrOpt('client_pool',
+               default='networking_bambuk.rpc.zeromq.zeromq_rpc.ZeroMQSenderPool',
+               help=_('The client agent pool class implementation')),
+    cfg.StrOpt('listener_ip',
+               default='*',
+               help=_('The ip to listen')),
+    cfg.IntOpt('listener_port',
+               default=5555,
+               help=_('The port to listen')),
+    cfg.StrOpt('bambuk_host',
+               help=_('The NIC IP for rpc that needs to listen')),
 ]
 
 cfg.CONF.register_opts(bambuk_opts, group='bambuk')
@@ -29,3 +38,25 @@ def list_opts():
     return [
         ('bambuk', bambuk_opts),
     ]
+
+
+def get_bambuk_agent():
+    return cfg.CONF.bambuk.bambuk_agent
+
+
+def get_client_pool():
+    return cfg.CONF.bambuk.client_pool
+
+
+def get_bambuk_host():
+    return cfg.CONF.bambuk.bambuk_host
+
+
+def get_listener_ip():
+    return cfg.CONF.bambuk.listener_ip
+
+
+def get_listener_port():
+    return cfg.CONF.bambuk.listener_port
+
+

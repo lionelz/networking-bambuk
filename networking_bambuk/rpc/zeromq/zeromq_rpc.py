@@ -12,28 +12,22 @@
 #    under the License.
 #
 
-import json
 from oslo_log import log
-import threading
 import zmq
 from zmq import error
+from networking_bambuk.rpc import bambuk_rpc
+from networking_bambuk.common import config
 
 
 LOG = log.getLogger(__name__)
 
 
-DEFAULT_PORT = 5555
-
-
-class ZeroMQReceiver(object):
+class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
     
-    def __init__(self, bambuk_agent, port=DEFAULT_PORT, ip='*'):
-        self._bambuk_agent = bambuk_agent
-        self._running = True
-        self._port = port
-        self._ip = ip
-        thread = threading.Thread(target=self.receive)
-        thread.start()
+    def __init__(self, bambuk_agent):
+        self._port = config.get_listener_port()
+        self._ip = config.get_listener_ip()
+        super(ZeroMQReceiver, self).__init__(bambuk_agent)
 
     def receive(self):
         context = zmq.Context()
@@ -43,68 +37,34 @@ class ZeroMQReceiver(object):
         while self._running:
             #  Wait for next request from client
             try:
-                message_json = self._socket.recv()
-                LOG.debug("Received message: %s" % message_json)
-                # call bambuk_agent
-                message = json.loads(message_json)
-                method = message['method']
-                handler = getattr(self, method, None)
-                if handler is not None:
-                    del message['method']
-                    response = handler(**message)
-                    #  Send reply back to client
-                    response_json = json.dumps(response)
-                    LOG.debug("Sending response: %s" % response_json)
-                    self._socket.send(response_json)
+                response = self.call_agent(self._socket.recv())
+                self._socket.send(response)
             except error.Again:
                 pass
 
-    def agent_state(self, **kwargs):
-        server_conf = kwargs.get('server_conf')
-        return self._bambuk_agent.agent_state(server_conf=server_conf)
 
-    def apply(self, **kwargs):
-        vm_connectivity = kwargs.get('vm_connectivity')
-        return self._bambuk_agent.apply(vm_connectivity=vm_connectivity)
+class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
-    def update(self, **kwargs):
-        vm_connectivity_update = kwargs.get('vm_connectivity_update')
-        return self._bambuk_agent.update(vm_connectivity_update=vm_connectivity_update)
+    senders = {}
 
-    def version(self, **kwargs):
-        return self._bambuk_agent.version()
-
-    def close(self):
-        self._running = False
+    def get_sender(self, vm):
+        key = "tcp://%s:%d" % (vm, config.get_listener_port())
+        sender = ZeroMQSenderPool.senders.get(key)
+        if not sender:
+            sender = ZeroMQSender(vm, config.get_listener_port())
+            ZeroMQSenderPool.senders[key] = sender
+        return sender
 
 
-class ZeroMQSender(object):
+class ZeroMQSender(bambuk_rpc.BambukRpcSender):
 
-    def __init__(self, host_or_ip, port=DEFAULT_PORT):
+    def __init__(self, host_or_ip, port=config.get_listener_port()):
+        super(ZeroMQSender, self).__init__()
         context = zmq.Context()
         self._socket = context.socket(zmq.REQ)
         self._socket.connect("tcp://%s:%d" % (host_or_ip, port))
 
-    def call_method(self, method, **kwargs):
-        message = {'method': method}
-        for name, value in kwargs.items():
-            message[name] = value
-        message_json = json.dumps(message)
-        LOG.debug("Sending message: %s" % message_json)
-        self._socket.send(message_json)
-        response_json = self._socket.recv()
-        LOG.debug("Received response: %s" % response_json)
-        return json.loads(response_json)
-
-    def agent_state(self, server_conf):
-        return self.call_method('agent_state', server_conf=server_conf)
-
-    def apply(self, vm_connectivity):
-        return self.call_method('apply', vm_connectivity=vm_connectivity)
-
-    def update(self, vm_connectivity_update):
-        return self.call_method('update',
-                                vm_connectivity_update=vm_connectivity_update)
-
-    def version(self):
-        return self.call_method('version')
+    def send(self, message):
+        self._socket.send(message)
+        return self._socket.recv()
+        
