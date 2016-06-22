@@ -88,7 +88,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
             server_ip = ''
             provider_mgnt_ip = profile['provider_mgnt_ip']
             provider_data_ip = profile['provider_data_ip']
-            agent_state = self._bambuk_client.agent_state(
+            state = self._bambuk_client.state(
                 {
                     'host': host_id,
                     'server_ip': server_ip,
@@ -97,5 +97,5 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
                 },
                 provider_mgnt_ip)
             agent_status = self.plugin.create_or_update_agent(
-                context, agent_state)
+                context, state)
 

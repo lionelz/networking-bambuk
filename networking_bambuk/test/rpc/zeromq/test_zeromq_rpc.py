@@ -21,16 +21,16 @@ from networking_bambuk.rpc import bambuk_rpc
 class FakeBambukAgent(bambuk_rpc.BambukRpc):
     
     def __init__(self):
-        self.state = None
+        self.agent_state = None
         self.server_conf = None
         self.vm_connectivity = None
         self.vm_connectivity_update = None
-        self.obj_version = None
 
-    def agent_state(self, server_conf):
+    def state(self, server_conf):
         self.server_conf = server_conf
-        self.state = {'state': True}
-        return self.state
+        self.agent_state = {'active': True,
+                            'capabilities': {'l2': '0.1'}}
+        return self.agent_state
 
     def apply(self, vm_connectivity):
         self.vm_connectivity = vm_connectivity
@@ -40,9 +40,6 @@ class FakeBambukAgent(bambuk_rpc.BambukRpc):
         self.vm_connectivity_update = vm_connectivity_update
         return True
 
-    def version(self):
-        self.obj_version = '1.2'
-        return self.obj_version
 
 class TestZeroMqRpc(unittest.TestCase):
 
@@ -56,11 +53,11 @@ class TestZeroMqRpc(unittest.TestCase):
     def tearDownClass(cls):
         TestZeroMqRpc._receiver.close()
 
-    def test_agent_state(self):
+    def test_state(self):
         server_conf = {'server_ip': '10.10.10.10'}
-        state = TestZeroMqRpc._sender.agent_state(server_conf)
+        state = TestZeroMqRpc._sender.state(server_conf)
         self.assertDictEqual(state,
-                             TestZeroMqRpc._receiver._bambuk_agent.state)
+                             TestZeroMqRpc._receiver._bambuk_agent.agent_state)
         self.assertDictEqual(server_conf,
                              TestZeroMqRpc._receiver._bambuk_agent.server_conf)
 
@@ -76,11 +73,6 @@ class TestZeroMqRpc(unittest.TestCase):
         self.assertDictEqual(
             vm_connectivity_update,
             TestZeroMqRpc._receiver._bambuk_agent.vm_connectivity_update)
-
-    def test_version(self):
-        version = TestZeroMqRpc._sender.version()
-        self.assertEqual(version,
-                         TestZeroMqRpc._receiver._bambuk_agent.obj_version)
 
 
 if __name__ == '__main__':

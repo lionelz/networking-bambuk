@@ -1,13 +1,19 @@
 @startuml
+skinparam componentStyle uml2
 
-cascading -> nova_driver: spawn_vm
-nova_driver -> nova_driver: create vm with 2 provider NICs\n\t(eth0: mngt, eth1: data)
-nova_driver -> nova_driver: start the vm
+cascading -> "nova driver": spawn_vm
+"nova driver" -> "nova driver": create vm with 2 provider NICs\n\t(eth0: mngt, eth1: data)
+"nova driver" -> "nova driver": start the vm
 loop for each port
-    nova_driver -> neutron_svc: update_port({\n\tport_id,\n\t'binding:host_id': xxx,\n\t'binding:profile': {\n\t\t'provider_mngt_ip': xxx,\n\t\t'provider_data_ip': xxx}})
+    "nova driver" -> neutron_svc: update_port({\n\tport_id,\n\t'binding:host_id': xxx,\n\t'binding:profile': {\n\t\t'provider_mngt_ip': xxx,\n\t\t'provider_data_ip': xxx}})
     neutron_svc -> bambuk_mechanism_driver: update_port(....)
-    bambuk_mechanism_driver -> bambuk_mechanism_driver: retrieve all port data\n(sg, routers, networks, subnets)
-    bambuk_mechanism_driver -> bambuk_agent: init_port(bambuk_server_ip, port_detail)
+    bambuk_mechanism_driver -> bambuk_agent: state(bambuk_service_config)\nreturn  agent state
+    bambuk_agent -> bambuk_agent: save on disk\nthe server configuration
+    bambuk_mechanism_driver -> neutron_svc: create_or_update_agent(state)
+    bambuk_mechanism_driver -> bambuk_mechanism_driver: retrieve all port data\n(sg, routers, subnets...)
+    bambuk_mechanism_driver -> bambuk_agent: apply(vm_connectivity)
+    bambuk_agent -> bambuk_agent: save on disk and applyt\nthe vm connectivity
+    bambuk_mechanism_driver -> neutron_svc: set port active
 end
 
 @enduml

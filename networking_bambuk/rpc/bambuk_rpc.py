@@ -39,8 +39,8 @@ class BambukAgentClient(object):
     def __init__(self):
         self._sender_pool = importutils.import_object(config.get_client_pool())
 
-    def agent_state(self, server_conf, vm):
-        return self._sender_pool.get_sender(vm).agent_state(self, server_conf)
+    def state(self, server_conf, vm):
+        return self._sender_pool.get_sender(vm).state(self, server_conf)
 
     def apply(self, vm_connectivity, vms):
         for vm in vms:
@@ -50,15 +50,12 @@ class BambukAgentClient(object):
         for vm in vms:
             self._sender_pool.get_sender(vm).update(vm_connectivity_update)
 
-    def version(self, vm):
-        return self._sender_pool.get_sender(vm).version(self)
-
 
 @six.add_metaclass(abc.ABCMeta)
 class BambukRpc(object):
     
     @abc.abstractmethod
-    def agent_state(self, server_conf):
+    def state(self, server_conf):
         pass
 
     @abc.abstractmethod
@@ -67,11 +64,15 @@ class BambukRpc(object):
 
     @abc.abstractmethod
     def update(self, vm_connectivity_update):
+        '''
+        vm_connectivity_update: {
+            'action': 'create|delete|replace',
+            'entity': 'xxx',
+            'id': 'xxx',
+            'value': 'xxx',
+        '''
         pass
 
-    @abc.abstractmethod
-    def version(self):
-        pass
 
 @six.add_metaclass(abc.ABCMeta)
 class BambukRpcReceiver(BambukRpc):
@@ -100,9 +101,9 @@ class BambukRpcReceiver(BambukRpc):
             LOG.debug("Sending response: %s" % response_json)
             return response_json
 
-    def agent_state(self, **kwargs):
+    def state(self, **kwargs):
         server_conf = kwargs.get('server_conf')
-        return self._bambuk_agent.agent_state(server_conf=server_conf)
+        return self._bambuk_agent.state(server_conf=server_conf)
 
     def apply(self, **kwargs):
         vm_connectivity = kwargs.get('vm_connectivity')
@@ -111,9 +112,6 @@ class BambukRpcReceiver(BambukRpc):
     def update(self, **kwargs):
         vm_connectivity_update = kwargs.get('vm_connectivity_update')
         return self._bambuk_agent.update(vm_connectivity_update=vm_connectivity_update)
-
-    def version(self, **kwargs):
-        return self._bambuk_agent.version()
 
     def close(self):
         self._running = False
@@ -141,8 +139,8 @@ class BambukRpcSender(BambukRpc):
         LOG.debug("Received response: %s" % response_json)
         return json.loads(response_json)
 
-    def agent_state(self, server_conf):
-        return self.call_method('agent_state', server_conf=server_conf)
+    def state(self, server_conf):
+        return self.call_method('state', server_conf=server_conf)
 
     def apply(self, vm_connectivity):
         return self.call_method('apply', vm_connectivity=vm_connectivity)
@@ -150,8 +148,6 @@ class BambukRpcSender(BambukRpc):
     def update(self, vm_connectivity_update):
         return self.call_method('update',
                                 vm_connectivity_update=vm_connectivity_update)
-    def version(self):
-        return self.call_method('version')
 
 
 @six.add_metaclass(abc.ABCMeta)

@@ -1,0 +1,21 @@
+@startuml
+
+l2pop -> "bambuk l2 pop":add_fdb_entries
+loop for all hyper vm 
+    "bambuk l2 pop" -> "bambuk agent": add(fdb_entries)
+end loop
+
+l2pop -> "bambuk l2 pop":remove_fdb_entries
+loop for all hyper vm 
+    "bambuk l2 pop" -> "bambuk agent": remove(fdb_entries)
+end loop
+
+l2pop -> "bambuk l2 pop":update_fdb_entries
+
+l2pop -> "bambuk l2 pop":fdb_add
+
+l2pop -> "bambuk l2 pop":fdb_remove
+
+l2pop -> "bambuk l2 pop":fdb_update
+
+@enduml

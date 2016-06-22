@@ -13,39 +13,4 @@
 #
 
 
-from networking_bambuk.rpc import bambuk_rpc
-
-
-class ClientBambukRpc(bambuk_rpc.BambukRpc):
-
-    def agent_state(self, server_conf):
-        pass
-
-    def cleanup(self):
-        pass
-
-    def apply(self, vm_connectivity):
-        pass
-
-    def update(self, vm_connectivity_update):
-        pass
-
-    def obj_version(self):
-        pass
-
-class AgentBambukRpc(bambuk_rpc.BambukRpc):
-
-    def agent_state(self, server_conf):
-        pass
-
-    def cleanup(self):
-        pass
-
-    def apply(self, vm_connectivity):
-        pass
-
-    def update(self, vm_connectivity_update):
-        pass
-
-    def obj_version(self):
-        pass
+# TODO:

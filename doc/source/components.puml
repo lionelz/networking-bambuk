@@ -6,6 +6,7 @@ node "Controller" {
         interface rpc_client
         [Bambuk L3 Router Plugin] --> rpc_client
         [Bambuk Mechanism Driver] --> rpc_client
+        [L2 population call back] --> rpc_client
     }
 }
 
@@ -23,8 +24,9 @@ node "Network Node" {
 node "Hyper VM" {
     interface rpc_server
     interface bambuk_agent
-    rpc_server --> disk
-    disk --> bambuk_agent
+    folder vm_connectivity
+    rpc_server --> vm_connectivity
+    rpc_server --> bambuk_agent
 }
 
 rpc_client -> rpc_server

@@ -1,4 +1,5 @@
 
+from oslo_concurrency import processutils
 from oslo_log import log as logging
 
 from ryu.base import app_manager
@@ -8,9 +9,31 @@ from ryu.controller.handler import CONFIG_DISPATCHER
 from ryu.controller.handler import MAIN_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
+from networking_bambuk.rpc.bambuk_rpc import BambukAgent
 
 
 LOG = logging.getLogger(__name__)
+
+class OvsLocalControllerAgent(BambukAgent):
+
+    def __init__(self):
+        # run the ryu appllication
+        app_mgr = app_manager.AppManager.get_instance()
+        self.open_flow_app = app_mgr.instantiate(BambukHandler,)
+        self.open_flow_app.start()
+
+    def state(self, server_conf):
+        return {
+            'active': 'true',
+            'capabilities': {'l2': '0.1'}
+        }
+
+    def apply(self, vm_connectivity):
+        # TODO:
+        pass
+
+    def update(self, vm_connectivity_update):
+        pass
 
 
 class BambukHandler(ofp_handler.OFPHandler):
@@ -62,7 +85,3 @@ class BambukHandler(ofp_handler.OFPHandler):
         LOG.info('_flow_removed_handler msg= %s' % msg)
 
 
-
-def main():
-    # TODO: run the controller
-    pass

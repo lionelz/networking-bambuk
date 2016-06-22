@@ -1,4 +1,5 @@
 @startuml
+skinparam componentStyle uml2
 
 note "Calls from Nova API." as novaapi
 top -up-> (attach interface to vm)
