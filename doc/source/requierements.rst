@@ -14,14 +14,16 @@ General
  
 3. Minimal Resource utilization
 
-    - In the Hyper VMs (memory/cpu): iptables/ovs, vxlan/...
-    - In the AZ resource: maybe the cascaded can run from a on premises for small AZs
-         - DHCP/METADATA/... decentralized services?
+ - In the Hyper VMs (memory/cpu): iptables/ovs, vxlan/...
+ - In the AZ resource: maybe the cascaded can run from a on premises for small AZs
+    - Maybe need DHCP/METADATA/... decentralized services 
 
 4. Reduce the openstack version dependencies:
-     - Why we need an agent on the Hyper VM that depends on the openstack version?
 
-**success measurement**?
+ - Why we need an agent on the Hyper VM that depends on the openstack version?
+
+**success measurement**
+
  - Code, ideas or design re-use in "hybrid cloud product"?
  - open source?
 
@@ -162,15 +164,26 @@ Dragonflow
 **********
 
 Solution:
+
+ - Based on the container sandbox security.
  - implement DB with ACL based on provider IP (the identification element):
+
     - Choose a DB implementation that supports ACL and implement it
     - Need to add a list of provider IPs to all DB object.
 
 Why not:
- - Depends in integration of dragonflow in Fusion Sphere
+
+ - Depends on integration of dragonflow in Fusion Sphere
+ - The agent depends on Openstack/FS version
 
 **************
 Keep DVR as is
 **************
 
+Solution:
 
+ - Based on the container sandbox security.
+
+Why not:
+
+ - The agent depends on Openstack/FS version
