@@ -1,27 +1,33 @@
-*************
+=============
 Requierements
-*************
+=============
 
 Agent solution for Hybrid cloud connectivity taking in account the security.
 
--------
+*******
 General
--------
+*******
 
 1. Simple integration/separation with NOVA
-2. Performance (throughput) / scalability 
+
+2. Performance (throughput) / scalability
+ 
 3. Minimal Resource utilization
+
     - In the Hyper VMs (memory/cpu): iptables/ovs, vxlan/...
     - In the AZ resource: maybe the cascaded can run from a on premises for small AZs
          - DHCP/METADATA/... decentralized services?
+
 4. Reduce the openstack version dependencies:
      - Why we need an agent on the Hyper VM that depends on the openstack version?
 
-(success measurement: Code, ideas or design re-use in "hybrid cloud product")
+**success measurement**?
+ - Code, ideas or design re-use in "hybrid cloud product"?
+ - open source?
 
---------
+********
 Security
---------
+********
 
 To understand the security requirements, the simple way is to consider an VM running a local agent without container.
 
@@ -56,11 +62,11 @@ Issue:
 Firewall As A Service
 =====================
 
-To be defined
+**To be defined**
 
-------------------------
+************************
 Cross cloud connectivity
-------------------------
+************************
 
 Full Mesh
 =========
@@ -75,9 +81,9 @@ Solution based on BGW
  - How to handle the ports marked as "remote"?
  - How to interconnect to the BGW?
 
-*****************
+=================
 Proposed Solution
-*****************
+=================
 
 The proposed solution to cover the requirements includes:
  - a specific neutron agent implementation dedicated for the hybrid cloud (**bambuk agent***): L2, Distributed L3 and may include other local services like DHCP/METADATA (G1, G2, G3, G4)
@@ -85,31 +91,41 @@ The proposed solution to cover the requirements includes:
  - ML2 mechanism driver to communicate to the bambuk agent for the L2 Hyper VM connectivity
  - l2 population call back implementation for 
 
+.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/components.png
 
-----------------------------
+
+****************************
 Integration with Nova Driver
-----------------------------
+****************************
 
 - spawn_vm: i.e. set the binding information in the ports to trigger the connectivity
-- attach_interface: to be defined
-- power_on: to be defined (get agent status)
 
-------------
+
+.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/spawn_vm.png
+
+
+- attach_interface: **to be defined**
+- power_on: **to be defined** (get agent status)
+
+************
 Bambuk Agent
-------------
+************
 
 - RPC receiver
-- Can be based on Dragon Flow for the pipeline and applications. To be defined.
+- Can be based on Dragon Flow for the pipeline and applications. **To be defined**.
 
----------------------------------------
+***************************************
 Provider Security Groups / Firewall Use
----------------------------------------
+***************************************
 
 A solution for HEC/FusionSphere/AWS to ensure the routing domain is to create a provider security group per router or per subnet if not connected to a router.  Each VM that belongs to one of the router network interface belong to this SG. This SG allow only communication from this SG.
 
-------------------------------------------
+******************************************
 Simple RPC (push or passive communication)
-------------------------------------------
+******************************************
+
+.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/bambuk_rpc.png
+
 
 Bambuk mechanism driver
 =======================
@@ -119,14 +135,14 @@ Should handle the binding profile on update_network_postcommit method.
 l2 population call back
 =======================
 
-Should handle all fdb changes: To be defined.
+Should handle all fdb changes: **To be defined**.
 
 L3 core plugin
 ==============
 
 Support multi-layer router?
 
-Should handle all router changes (to be defined):
+Should handle all router changes (**to be defined**):
  - create SG for each router creation
  - add all VMs to this SG when an interface is added
  - ...
@@ -136,14 +152,14 @@ Security Groups
 
 Should handle all security group / rule changes.
 
-
-************
+============
 Alternatives
-************
+============
 
-----------
+
+**********
 Dragonflow
-----------
+**********
 
 Solution:
  - implement DB with ACL based on provider IP (the identification element):
@@ -153,8 +169,8 @@ Solution:
 Why not:
  - Depends in integration of dragonflow in Fusion Sphere
 
---------------
+**************
 Keep DVR as is
---------------
+**************
 
 
