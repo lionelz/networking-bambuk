@@ -2,23 +2,22 @@
 Requierements
 *************
 
-The GOAL is to improve the agent solution for Hybrid cloud connectivity.
+Agent solution for Hybrid cloud connectivity taking in account the security.
 
 -------
 General
 -------
 
 1. Simple integration/separation with NOVA
-2. Performance
+2. Performance (throughput) / scalability 
 3. Minimal Resource utilization
     - In the Hyper VMs (memory/cpu): iptables/ovs, vxlan/...
     - In the AZ resource: maybe the cascaded can run from a on premises for small AZs
          - DHCP/METADATA/... decentralized services?
 4. Reduce the openstack version dependencies:
      - Why we need an agent on the Hyper VM that depends on the openstack version?
-5. success measurement: TOGA inside
-    - Integrate some code
-    - And/Or Integrate ideas/design re-use in "hybrid cloud product"
+
+(success measurement: Code, ideas or design re-use in "hybrid cloud product")
 
 --------
 Security
@@ -87,39 +86,55 @@ The proposed solution to cover the requirements includes:
  - l2 population call back implementation for 
 
 
+----------------------------
+Integration with Nova Driver
+----------------------------
+
+- spawn_vm: i.e. set the binding information in the ports to trigger the connectivity
+- attach_interface: to be defined
+- power_on: to be defined (get agent status)
+
 ------------
 Bambuk Agent
 ------------
 
-Based on Dragon Flow: pipeline and application.
-
-----------------------------
-plug vif interface with NOVA
-----------------------------
-
- - spawn vm interface
- - attach vif
+- RPC receiver
+- Can be based on Dragon Flow for the pipeline and applications. To be defined.
 
 ---------------------------------------
 Provider Security Groups / Firewall Use
 ---------------------------------------
 
+A solution for HEC/FusionSphere/AWS to ensure the routing domain is to create a provider security group per router or per subnet if not connected to a router.  Each VM that belongs to one of the router network interface belong to this SG. This SG allow only communication from this SG.
+
 ------------------------------------------
 Simple RPC (push or passive communication)
 ------------------------------------------
 
-Bombuk mechanism driver
+Bambuk mechanism driver
 =======================
 
-l2 population
-=============
+Should handle the binding profile on update_network_postcommit method.
+
+l2 population call back
+=======================
+
+Should handle all fdb changes: To be defined.
 
 L3 core plugin
 ==============
 
+Support multi-layer router?
+
+Should handle all router changes (to be defined):
+ - create SG for each router creation
+ - add all VMs to this SG when an interface is added
+ - ...
 
 Security Groups
 ===============
+
+Should handle all security group / rule changes.
 
 
 ************

@@ -1,0 +1,32 @@
+@startuml
+
+class bambuk_rpc {
+
+  {abstract}agent_state: state(server_conf)
+  {abstract}boolean: apply(vm_connectivity)
+  {abstract}boolean: update(vm_connectivity_update)
+
+}
+
+class agent_state {
+   must return the agent map defining it: check with ovs_agent
+}
+
+class server_conf {
+   server_ip
+}
+
+class vm_connectivity {
+   vifs
+   security_groups
+   fdp_entries
+}
+
+class vm_connectivity_update {
+    action: create|delete|replace
+    entity
+    id
+    value
+}
+
+@enduml
