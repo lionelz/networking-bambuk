@@ -2,7 +2,7 @@
 Requierements
 =============
 
-Agent solution for Hybrid cloud connectivity taking in account the security.
+Agent solution for Hybrid cloud connectivity  which takes security into account.
 
 *******
 General
@@ -15,14 +15,14 @@ General
 3. Minimal Resource utilization
 
  - In the Hyper VMs (memory/cpu): iptables/ovs, vxlan/...
- - In the AZ resource: maybe the cascaded can run from a on premises for small AZs
-    - Maybe need DHCP/METADATA/... decentralized services 
+ - In the AZ resource: allow the cascaded run on premises for small AZs
+    - Maybe need DHCP/METADATA/... decentralized services
 
 4. Reduce the openstack version dependencies:
 
  - Why we need an agent on the Hyper VM that depends on the openstack version?
 
-**success measurement**
+**success merit**
 
  - Code, ideas or design re-use in "hybrid cloud product"?
  - open source?
@@ -59,7 +59,7 @@ To allow communication between network neighbors, security groups rules should b
  - Ingress allow rules
 
 Issue:
- - When an agent enforces these security groups rules on the Hyper VM, the user may allow all egress and ingress communication. 
+ - When an agent enforces these security groups rules on the Hyper VM, the user may allow all egress and ingress communication.
 
 Firewall As A Service
 =====================
@@ -73,7 +73,7 @@ Cross cloud connectivity
 Full Mesh
 =========
 
- - Take in account for tunneling termination the ports marked as "remote"
+ - Consider ports marked as "remote" for vtep (virtual tunnel end point)
  - Add a route to the VPN servers per providers networks for the remotes AZ
 
 Solution based on BGW
@@ -91,7 +91,7 @@ The proposed solution to cover the requirements includes:
  - a specific neutron agent implementation dedicated for the hybrid cloud (**bambuk agent***): L2, Distributed L3 and may include other local services like DHCP/METADATA (G1, G2, G3, G4)
  - Add a simple RPC communication between Neutron Server and the Hyper VM (S1, G1, G4)
  - ML2 mechanism driver to communicate to the bambuk agent for the L2 Hyper VM connectivity
- - l2 population call back implementation for 
+ - l2 population call back implementation for vxlan termination updates
 
 .. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/components.png
 
