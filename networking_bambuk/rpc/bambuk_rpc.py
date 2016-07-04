@@ -37,18 +37,22 @@ class BambukSenderPool(object):
 class BambukAgentClient(object):
 
     def __init__(self):
-        self._sender_pool = importutils.import_object(config.get_client_pool())
+        self._sender_pool = importutils.import_object(config.get_sender_pool())
 
     def state(self, server_conf, vm):
         return self._sender_pool.get_sender(vm).state(self, server_conf)
 
-    def apply(self, vm_connectivity, vms):
+    def apply(self, connect_db, vms):
         for vm in vms:
-            self._sender_pool.get_sender(vm).apply(vm_connectivity)
+            self._sender_pool.get_sender(vm).apply(connect_db)
 
-    def update(self, vm_connectivity_update, vms):
+    def update(self, connect_db_update, vms):
         for vm in vms:
-            self._sender_pool.get_sender(vm).update(vm_connectivity_update)
+            self._sender_pool.get_sender(vm).update(connect_db_update)
+
+    def delete(self, connect_db_delete, vms):
+        for vm in vms:
+            self._sender_pool.get_sender(vm).delete(connect_db_delete)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -59,17 +63,25 @@ class BambukRpc(object):
         pass
 
     @abc.abstractmethod
-    def apply(self, vm_connectivity):
+    def apply(self, connect_db):
         pass
 
     @abc.abstractmethod
-    def update(self, vm_connectivity_update):
+    def update(self, connect_db_delete):
         '''
-        vm_connectivity_update: {
-            'action': 'create|delete|replace',
-            'entity': 'xxx',
-            'id': 'xxx',
+        connect_db_delete: {
+            'table': 'xxx',
+            'key': 'xxx',
             'value': 'xxx',
+        '''
+        pass
+
+    @abc.abstractmethod
+    def delete(self, connect_db_update):
+        '''
+        connect_db_update: {
+            'table': 'xxx',
+            'key': 'xxx',
         '''
         pass
 
@@ -106,12 +118,18 @@ class BambukRpcReceiver(BambukRpc):
         return self._bambuk_agent.state(server_conf=server_conf)
 
     def apply(self, **kwargs):
-        vm_connectivity = kwargs.get('vm_connectivity')
-        return self._bambuk_agent.apply(vm_connectivity=vm_connectivity)
+        connect_db = kwargs.get('connect_db')
+        return self._bambuk_agent.apply(connect_db=connect_db)
 
     def update(self, **kwargs):
-        vm_connectivity_update = kwargs.get('vm_connectivity_update')
-        return self._bambuk_agent.update(vm_connectivity_update=vm_connectivity_update)
+        connect_db_update = kwargs.get('connect_db_update')
+        return self._bambuk_agent.update(
+            connect_db_update=connect_db_update)
+
+    def delete(self, **kwargs):
+        connect_db_delete = kwargs.get('connect_db_delete')
+        return self._bambuk_agent.delete(
+            connect_db_delete=connect_db_delete)
 
     def close(self):
         self._running = False
@@ -142,12 +160,16 @@ class BambukRpcSender(BambukRpc):
     def state(self, server_conf):
         return self.call_method('state', server_conf=server_conf)
 
-    def apply(self, vm_connectivity):
-        return self.call_method('apply', vm_connectivity=vm_connectivity)
+    def apply(self, connect_db):
+        return self.call_method('apply', connect_db=connect_db)
 
-    def update(self, vm_connectivity_update):
+    def update(self, connect_db_update):
         return self.call_method('update',
-                                vm_connectivity_update=vm_connectivity_update)
+                                connect_db_update=connect_db_update)
+
+    def delete(self, connect_db_delete):
+        return self.call_method('delete',
+                                connect_db_delete=connect_db_delete)
 
 
 @six.add_metaclass(abc.ABCMeta)

@@ -12,7 +12,10 @@
 #    under the License.
 #
 
-from oslo_log import log
+from dragonflow.neutron.common import constants as df_const
+
+from networking_bambuk._i18n import _LI
+from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
 from neutron import context as n_context
 from neutron import manager
@@ -22,12 +25,12 @@ from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.plugins.ml2 import driver_api
 
-from networking_bambuk._i18n import _LI
-from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
+from oslo_log import log
+
+from oslo_serialization import jsonutils
 
 
 LOG = log.getLogger(__name__)
-
 
 
 class BambukMechanismDriver(driver_api.MechanismDriver):
@@ -37,7 +40,24 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
         self._bambuk_client = BambukAgentClient()
-        self.subscribe()
+
+        registry.subscribe(self.post_fork_initialize,
+                           resources.PROCESS,
+                           events.AFTER_CREATE)
+
+        # Handle security group/rule notifications
+        registry.subscribe(self.create_security_group,
+                           resources.SECURITY_GROUP,
+                           events.AFTER_CREATE)
+        registry.subscribe(self.delete_security_group,
+                           resources.SECURITY_GROUP,
+                           events.BEFORE_DELETE)
+        registry.subscribe(self.create_security_group_rule,
+                           resources.SECURITY_GROUP_RULE,
+                           events.AFTER_CREATE)
+        registry.subscribe(self.delete_security_group_rule,
+                           resources.SECURITY_GROUP_RULE,
+                           events.BEFORE_DELETE)
 
     @property
     def _plugin(self):
@@ -50,30 +70,6 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
         if res is attributes.ATTR_NOT_SPECIFIED:
             res = None
         return res
-
-    def subscribe(self):
-        registry.subscribe(self.post_fork_initialize,
-                           resources.PROCESS,
-                           events.AFTER_CREATE)
-
-        # Handle security group/rule notifications
-        registry.subscribe(self._process_sg_notification,
-                           resources.SECURITY_GROUP,
-                           events.AFTER_UPDATE)
-        registry.subscribe(self._process_sg_notification,
-                           resources.SECURITY_GROUP_RULE,
-                           events.AFTER_CREATE)
-        registry.subscribe(self._process_sg_notification,
-                           resources.SECURITY_GROUP_RULE,
-                           events.BEFORE_DELETE)
-
-    def post_fork_initialize(self, resource, event, trigger, **kwargs):
-        # TODO: implement it
-        pass
-
-    def _process_sg_notification(self, resource, event, trigger, **kwargs):
-        # TODO: implement it
-        pass
 
     def update_network_postcommit(self, context):
         port = context.current
@@ -99,3 +95,43 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
             agent_status = self.plugin.create_or_update_agent(
                 context, state)
 
+
+    def _update(self, table, key, value):
+        self._bambuk_client.update({
+            'table': table,
+            'key': key,
+            'value': value,
+        })
+
+    def _delete(self, table, key):
+        self._bambuk_client.delete({
+            'table': table,
+            'key': key
+        })
+
+    def create_security_group(self, resource, event, trigger, **kwargs):
+        sg = kwargs['security_group']
+        sg_id = sg['id']
+        if not 'name' in sg:
+            sg['name'] = df_const.DF_SG_DEFAULT_NAME
+        rules = sg.get('security_group_rules')
+        for rule in rules:
+            del rule['tenant_id']
+
+        sg_json = jsonutils.dumps(sg)
+
+        self._update('secgroup', sg_id, sg_json)
+
+    def delete_security_group(self, resource, event, trigger, **kwargs):
+        sg_id = kwargs['security_group_id']
+        self._delete('secgroup', sg_id)
+
+    def create_security_group_rule(self, resource, event, trigger, **kwargs):
+        sg_rule = kwargs['security_group_rule']
+        sg_id = sg_rule['security_group_id']
+        # TODO: read the sg from the Db and update sg or create table secgrouprule
+
+    def delete_security_group_rule(self, resource, event, trigger, **kwargs):
+        sg_rule = kwargs['security_group_rule']
+        sg_id = sg_rule['security_group_id']
+        # TODO: read the sg from the Db and update sg or create table secgrouprule

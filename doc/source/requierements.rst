@@ -93,7 +93,7 @@ The proposed solution to cover the requirements includes:
  - ML2 mechanism driver to communicate to the bambuk agent for the L2 Hyper VM connectivity
  - l2 population call back implementation for vxlan termination updates
 
-.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/components.png
+.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/img/components.png
 
 
 ****************************
@@ -103,7 +103,7 @@ Integration with Nova Driver
 - spawn_vm: i.e. set the binding information in the ports to trigger the connectivity
 
 
-.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/spawn_vm.png
+.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/img/spawn_vm.png
 
 
 - attach_interface: **to be defined**
@@ -126,7 +126,7 @@ A solution for HEC/FusionSphere/AWS to ensure the routing domain is to create a 
 Simple RPC (push or passive communication)
 ******************************************
 
-.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/source/img/bambuk_rpc.png
+.. image:: https://raw.githubusercontent.com/lionelz/networking-bambuk/master/doc/img/bambuk_rpc.png
 
 
 Bambuk mechanism driver

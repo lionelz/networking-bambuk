@@ -24,8 +24,8 @@ node "Network Node" {
 node "Hyper VM" {
     interface rpc_server
     interface bambuk_agent
-    folder vm_connectivity
-    rpc_server --> vm_connectivity
+    folder connect_db
+    rpc_server --> connect_db
     rpc_server --> bambuk_agent
 }
 

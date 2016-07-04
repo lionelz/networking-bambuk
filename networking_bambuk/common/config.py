@@ -15,12 +15,15 @@ from networking_bambuk._i18n import _
 
 
 bambuk_opts = [
-    cfg.StrOpt('bambuk_agent',
-               default='networking_bambuk.agent.controller.ovs_agent.BambukHandler',
-               help=_('The agent class implementation')),
-    cfg.StrOpt('client_pool',
-               default='networking_bambuk.rpc.zeromq.zeromq_rpc.ZeroMQSenderPool',
+    cfg.StrOpt('sender_pool',
+               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQSenderPool',
                help=_('The client agent pool class implementation')),
+    cfg.StrOpt('receiver',
+               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQReceiver',
+               help=_('The client agent pool class implementation')),
+    cfg.StrOpt('json_db_cache',
+               default='/tmp/connect_db.json',
+               help=_('The JSON DB file cache')),
     cfg.StrOpt('listener_ip',
                default='*',
                help=_('The ip to listen')),
@@ -40,12 +43,16 @@ def list_opts():
     ]
 
 
-def get_bambuk_agent():
-    return cfg.CONF.bambuk.bambuk_agent
+def get_sender_pool():
+    return cfg.CONF.bambuk.sender_pool
 
 
-def get_client_pool():
-    return cfg.CONF.bambuk.client_pool
+def get_receiver():
+    return cfg.CONF.bambuk.receiver
+
+
+def get_json_db_cache():
+    return cfg.CONF.bambuk.json_db_cache
 
 
 def get_bambuk_host():

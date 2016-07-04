@@ -14,17 +14,14 @@
 
 import unittest
 
-from networking_bambuk.rpc.zeromq import zeromq_rpc
+from networking_bambuk.rpc import zeromq_rpc
 from networking_bambuk.rpc import bambuk_rpc
 
 
 class FakeBambukAgent(bambuk_rpc.BambukRpc):
     
     def __init__(self):
-        self.agent_state = None
-        self.server_conf = None
-        self.vm_connectivity = None
-        self.vm_connectivity_update = None
+        pass
 
     def state(self, server_conf):
         self.server_conf = server_conf
@@ -32,12 +29,16 @@ class FakeBambukAgent(bambuk_rpc.BambukRpc):
                             'capabilities': {'l2': '0.1'}}
         return self.agent_state
 
-    def apply(self, vm_connectivity):
-        self.vm_connectivity = vm_connectivity
+    def apply(self, connect_db):
+        self.connect_db = connect_db
         return True
 
-    def update(self, vm_connectivity_update):
-        self.vm_connectivity_update = vm_connectivity_update
+    def update(self, connect_db_update):
+        self.connect_db_update = connect_db_update
+        return True
+
+    def delete(self, connect_db_delete):
+        self.connect_db_delete = connect_db_delete
         return True
 
 
@@ -62,17 +63,21 @@ class TestZeroMqRpc(unittest.TestCase):
                              TestZeroMqRpc._receiver._bambuk_agent.server_conf)
 
     def test_apply(self):
-        vm_connectivity = {'port': 'xxx'}
-        TestZeroMqRpc._sender.apply(vm_connectivity)
-        self.assertDictEqual(vm_connectivity,
-                             TestZeroMqRpc._receiver._bambuk_agent.vm_connectivity)
+        connect_db = {'port': 'xxx'}
+        TestZeroMqRpc._sender.apply(connect_db)
+        self.assertDictEqual(connect_db,
+                             TestZeroMqRpc._receiver._bambuk_agent.connect_db)
 
     def test_update(self):
-        vm_connectivity_update = {'port': 'xxx'}
-        TestZeroMqRpc._sender.update(vm_connectivity_update)
+        connect_db_update = {'port': 'xxx'}
+        TestZeroMqRpc._sender.update(connect_db_update)
         self.assertDictEqual(
-            vm_connectivity_update,
-            TestZeroMqRpc._receiver._bambuk_agent.vm_connectivity_update)
+            connect_db_update,
+            TestZeroMqRpc._receiver._bambuk_agent.connect_db_update)
+        TestZeroMqRpc._sender.delete(connect_db_update)
+        self.assertDictEqual(
+            connect_db_update,
+            TestZeroMqRpc._receiver._bambuk_agent.connect_db_delete)
 
 
 if __name__ == '__main__':

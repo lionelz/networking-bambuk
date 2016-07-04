@@ -8,7 +8,7 @@ enum entity_type {
     fdb_entry
 }
 
-class vm_connectivity {
+class connect_db {
     version
     ..
     Map<(entity_type, id), value>
@@ -22,7 +22,7 @@ class fdb_entry {
     ports(mac_address, ip_address)
 }
 
-class vm_connectivity_update {
+class connect_db_update {
     entity_type
     ..
     id

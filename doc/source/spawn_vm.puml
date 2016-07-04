@@ -12,7 +12,7 @@ loop for each port
     bambuk_agent -> bambuk_mechanism_driver: response: agent description/state
     bambuk_mechanism_driver -> neutron_svc: create_or_update_agent(state)
     bambuk_mechanism_driver -> bambuk_mechanism_driver: retrieve all port data\n(sg, routers, subnets...)
-    bambuk_mechanism_driver -> bambuk_agent: apply(vm_connectivity)
+    bambuk_mechanism_driver -> bambuk_agent: apply(connect_db)
     bambuk_agent -> bambuk_agent: save on disk and applyt\nthe vm connectivity
     bambuk_agent -> bambuk_mechanism_driver: success?
     bambuk_mechanism_driver -> neutron_svc: set port active

@@ -3,6 +3,7 @@
 	<name>bambuk</name>
 	<comment></comment>
 	<projects>
+		<project>dragonflow</project>
 		<project>neutron</project>
 	</projects>
 	<buildSpec>

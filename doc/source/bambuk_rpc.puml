@@ -3,8 +3,8 @@
 class bambuk_rpc {
 
   {abstract}agent_state: state(server_conf)
-  {abstract}boolean: apply(vm_connectivity)
-  {abstract}boolean: update(vm_connectivity_update)
+  {abstract}boolean: apply(connect_db)
+  {abstract}boolean: update(connect_db_update)
 
 }
 
@@ -16,13 +16,13 @@ class server_conf {
    server_ip
 }
 
-class vm_connectivity {
+class connect_db {
    vifs
    security_groups
    fdp_entries
 }
 
-class vm_connectivity_update {
+class connect_db_update {
     action: create|delete|replace
     entity
     id
