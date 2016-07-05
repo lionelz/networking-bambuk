@@ -12,18 +12,17 @@
 #    under the License.
 #
 
-from dragonflow.neutron.common import constants as df_const
-
 from networking_bambuk._i18n import _LI
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
-from neutron import context as n_context
 from neutron import manager
 from neutron.api.v2 import attributes
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.plugins.ml2 import driver_api
+from neutron.db.portbindings_base import PortBindingBaseMixin
+from neutron.extensions import portbindings
+from neutron.plugins.ml2.driver_api import MechanismDriver
 
 from oslo_log import log
 
@@ -33,18 +32,14 @@ from oslo_serialization import jsonutils
 LOG = log.getLogger(__name__)
 
 
-class BambukMechanismDriver(driver_api.MechanismDriver):
+class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
     """Bambuk ML2 mechanism driver
     """
-
+    
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
         self._bambuk_client = BambukAgentClient()
-
-        registry.subscribe(self.post_fork_initialize,
-                           resources.PROCESS,
-                           events.AFTER_CREATE)
-
+                            
         # Handle security group/rule notifications
         registry.subscribe(self.create_security_group,
                            resources.SECURITY_GROUP,
@@ -71,31 +66,6 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
             res = None
         return res
 
-    def update_network_postcommit(self, context):
-        port = context.current
-        original_port = context.original
-        LOG.info("port %s" % port)
-        LOG.info("original_port %s" % original_port)
-        # check if profile
-        if 'binding:host_id' in port and 'binding:profile' in port:
-            #create or update agent
-            host_id = port['binding:host_id']
-            profile = port['binding:profile']
-            server_ip = ''
-            provider_mgnt_ip = profile['provider_mgnt_ip']
-            provider_data_ip = profile['provider_data_ip']
-            state = self._bambuk_client.state(
-                {
-                    'host': host_id,
-                    'server_ip': server_ip,
-                    'provider_mgnt_ip': provider_mgnt_ip,
-                    'provider_data_ip': provider_data_ip
-                },
-                provider_mgnt_ip)
-            agent_status = self.plugin.create_or_update_agent(
-                context, state)
-
-
     def _update(self, table, key, value):
         self._bambuk_client.update({
             'table': table,
@@ -113,7 +83,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver):
         sg = kwargs['security_group']
         sg_id = sg['id']
         if not 'name' in sg:
-            sg['name'] = df_const.DF_SG_DEFAULT_NAME
+            sg['name'] = 'no_sg_name'
         rules = sg.get('security_group_rules')
         for rule in rules:
             del rule['tenant_id']
