@@ -21,7 +21,8 @@ from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.db.portbindings_base import PortBindingBaseMixin
-from neutron.extensions import portbindings
+from neutron.extensions import allowedaddresspairs as addr_pair
+from neutron.extensions import portsecurity as psec
 from neutron.plugins.ml2.driver_api import MechanismDriver
 
 from oslo_log import log
@@ -66,12 +67,12 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
             res = None
         return res
 
-    def _update(self, table, key, value):
+    def _update(self, table, key, value, vms):
         self._bambuk_client.update({
             'table': table,
             'key': key,
             'value': value,
-        })
+        }, vms)
 
     def _delete(self, table, key):
         self._bambuk_client.delete({
@@ -105,3 +106,80 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
         sg_rule = kwargs['security_group_rule']
         sg_id = sg_rule['security_group_id']
         # TODO: read the sg from the Db and update sg or create table secgrouprule
+
+    def _apply_port(self, context, port):
+        binding_profile = port['binding:profile']
+        device_id = port['device_id']
+        provider_mgnt_ip = binding_profile['provider_mgnt_ip']
+        if 'provider_data_ip' in binding_profile:
+            provider_data_ip = binding_profile['provider_data_ip']
+        else:
+            provider_data_ip = provider_mgnt_ip
+        server_conf = {
+            'device_id': device_id,
+            'local_ip': provider_data_ip
+        }
+
+        # get agent state
+        agent_state =  self._bambuk_client.state(server_conf, provider_mgnt_ip)
+        if not agent_state:
+            return
+
+        # create or update the agent
+        self.create_or_update_agent(agent_state)
+        agents = self._plugin.get_agents(
+            context,
+            filters={
+                'agent_type': agent_state['agent_type'],
+                'host': device_id
+            }
+        )
+        if not agents:
+            return
+
+        # lport
+        # TODO: calculate the tunnel_key
+        tunnel_key = '1'
+        ips = [ip['ip_address'] for ip in port.get('fixed_ips', [])]
+        if port.get('device_owner') == "network:router_gateway":
+            chassis = None
+        else:
+            chassis = port.get('binding:host_id', None)
+        lport = {}
+        lport['id'] = port['id']
+        lport['lswitch'] = port['network_id']
+        lport['macs'] =[port['mac_address']]
+        lport['ips'] = ips
+        lport['name'] = port.get('name', 'no_port_name')
+        lport['enabled'] = port.get('admin_state_up', None)
+        lport['chassis'] = chassis
+        lport['tunnel_key'] = tunnel_key
+        lport['device_owner'] = port.get('device_owner', None)
+        lport['device_id'] = port.get('device_id', None)
+        lport['security_groups'] = port.get('security_groups', None)
+        lport['port_security_enabled'] = port.get(psec.PORTSECURITY, False)
+        lport['allowed_address_pairs'] = port.get(addr_pair.ADDRESS_PAIRS, None)
+        lport_json = jsonutils.dumps(lport)
+
+        # TODO: security groups
+        sg_info = self._plugin.security_group_info_for_ports(
+            context, {port['id']: port})
+        LOG.debug(sg_info)
+
+        # TODO: list of endpoints
+
+        self._bambuk_client.apply(
+            [{'table': 'lport', 'key': port['id'], 'value': lport_json}],
+            provider_mgnt_ip)
+
+    def create_port_postcommit(self, context):
+        port = context.current
+        binding_profile = port['binding:profile']
+        if 'provider_mgnt_ip' in binding_profile:
+            self._apply_port(context, port)
+
+    def update_port_postcommit(self, context):
+        port = context.current
+        binding_profile = port['binding:profile']
+        if 'provider_mgnt_ip' in binding_profile:
+            self._apply_port(context, port)

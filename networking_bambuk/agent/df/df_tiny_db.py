@@ -12,6 +12,8 @@
 #    under the License.
 #
 
+import sys
+
 from dragonflow.db import db_api
 
 from networking_bambuk.common import config
@@ -33,11 +35,11 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
 
     ##########################################################################
     def initialize(self, db_ip, db_port, **args):
-        # start the configured receiver
-        self._bambuk_receiver = importutils.import_object(
-            config.get_receiver(), self)
         # open json file with tinyDb
         self._db = TinyDB(config.get_json_db_cache())
+        # start the configured receiver
+        self._bambuk_receiver = importutils.import_object(
+            config.get_receiver(), bambuk_agent=self)
         # TODO: check if server in DB and refresh the connectivity DB
 
     def support_publish_subscribe(self):
@@ -103,27 +105,57 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
 
     #########################################################################
     def state(self, server_conf):
-        # TODO: use the server conf to keep the server ip in db
-        self.server_conf = server_conf
-        # TODO: implement agent state
-        self.agent_state = {'active': True,
-                            'capabilities': {'l2': '0.1'}}
+        try:
+            # TODO: use the server conf to keep the server ip in db
+            self.server_conf = server_conf
+            # TODO: implement agent state
+            self.agent_state = {
+                'binary': 'bambuk-openvswitch-agent',
+                'host': server_conf['device_id'],
+                'configurations': {
+                    'tunnel_types': 'vxlan',
+                    'tunneling_ip': server_conf['local_ip'],
+                    'l2_population': True,
+                    'arp_responder_enabled': True,
+                    'enable_distributed_routing': True,
+                },
+                'agent_type': 'bambuk-agent',
+                'start_flag': True
+            }
+        except:
+            e = sys.exc_info()[0]
+            LOG.error('an error occurs %s' % e)
+            return False
         return self.agent_state
 
     def apply(self, connect_db):
-        self.clear_all()
-        for entry in connect_db:
-            self.create_key(entry['table'], entry['key'], entry['value'])
+        try:
+            self.clear_all()
+            for entry in connect_db:
+                self.create_key(entry['table'], entry['key'], entry['value'])
+        except:
+            e = sys.exc_info()[0]
+            LOG.error('an error occurs %s' % e)
+            return False
         return True
 
     def update(self, connect_db_update):
-        self.set_key(connect_db_update['table'],
-                     connect_db_update['key'],
-                     connect_db_update['value'])
+        try:
+            self.set_key(connect_db_update['table'],
+                         connect_db_update['key'],
+                         connect_db_update['value'])
+        except:
+            e = sys.exc_info()[0]
+            LOG.error('an error occurs %s' % e)
+            return False
         return True
 
     def delete(self, connect_db_delete):
-        self.delete_key(connect_db_delete['table'],
-                        connect_db_delete['key'])
+        try:
+            self.delete_key(connect_db_delete['table'],
+                            connect_db_delete['key'])
+        except:
+            e = sys.exc_info()[0]
+            LOG.error('an error occurs %s' % e)
+            return False
         return True
-

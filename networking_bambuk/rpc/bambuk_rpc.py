@@ -42,9 +42,8 @@ class BambukAgentClient(object):
     def state(self, server_conf, vm):
         return self._sender_pool.get_sender(vm).state(self, server_conf)
 
-    def apply(self, connect_db, vms):
-        for vm in vms:
-            self._sender_pool.get_sender(vm).apply(connect_db)
+    def apply(self, connect_db, vm):
+        self._sender_pool.get_sender(vm).apply(connect_db)
 
     def update(self, connect_db_update, vms):
         for vm in vms:

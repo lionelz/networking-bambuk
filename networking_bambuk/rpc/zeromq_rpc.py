@@ -60,6 +60,7 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
 
     def __init__(self, host_or_ip, port=config.get_listener_port()):
         super(ZeroMQSender, self).__init__()
+        LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         context = zmq.Context()
         self._socket = context.socket(zmq.REQ)
         self._socket.connect("tcp://%s:%d" % (host_or_ip, port))
