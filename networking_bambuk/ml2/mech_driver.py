@@ -15,11 +15,13 @@
 from networking_bambuk._i18n import _LI
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
+from neutron import context as n_context
 from neutron import manager
 from neutron.api.v2 import attributes
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
+from neutron.db import api as db_api
 from neutron.db.portbindings_base import PortBindingBaseMixin
 from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import portsecurity as psec
@@ -40,6 +42,7 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
         self._bambuk_client = BambukAgentClient()
+        self._plugin_property = None
                             
         # Handle security group/rule notifications
         registry.subscribe(self.create_security_group,
@@ -126,7 +129,9 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
             return
 
         # create or update the agent
-        self.create_or_update_agent(agent_state)
+        agent = self._plugin.create_or_update_agent(
+            n_context.get_admin_context_without_session(), agent_state)
+        LOG.debug(agent)
         agents = self._plugin.get_agents(
             context,
             filters={
@@ -172,13 +177,13 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
             [{'table': 'lport', 'key': port['id'], 'value': lport_json}],
             provider_mgnt_ip)
 
-    def create_port_postcommit(self, context):
+    def create_port_precommit(self, context):
         port = context.current
         binding_profile = port['binding:profile']
         if 'provider_mgnt_ip' in binding_profile:
             self._apply_port(context, port)
 
-    def update_port_postcommit(self, context):
+    def update_port_precommit(self, context):
         port = context.current
         binding_profile = port['binding:profile']
         if 'provider_mgnt_ip' in binding_profile:

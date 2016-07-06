@@ -112,6 +112,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             self.agent_state = {
                 'binary': 'bambuk-openvswitch-agent',
                 'host': server_conf['device_id'],
+                'topic': 'N/A',
                 'configurations': {
                     'tunnel_types': 'vxlan',
                     'tunneling_ip': server_conf['local_ip'],

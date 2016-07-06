@@ -40,7 +40,7 @@ class BambukAgentClient(object):
         self._sender_pool = importutils.import_object(config.get_sender_pool())
 
     def state(self, server_conf, vm):
-        return self._sender_pool.get_sender(vm).state(self, server_conf)
+        return self._sender_pool.get_sender(vm).state(server_conf)
 
     def apply(self, connect_db, vm):
         self._sender_pool.get_sender(vm).apply(connect_db)
