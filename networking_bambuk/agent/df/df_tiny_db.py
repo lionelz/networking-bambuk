@@ -106,6 +106,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
     #########################################################################
     def state(self, server_conf):
         try:
+            LOG.info('state(%s)', server_conf)
             # TODO: use the server conf to keep the server ip in db
             self.server_conf = server_conf
             # TODO: implement agent state
@@ -131,11 +132,12 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
 
     def apply(self, connect_db):
         try:
+            LOG.info('apply(%s)', connect_db)
             self.clear_all()
             for entry in connect_db:
                 self.create_key(entry['table'], entry['key'], entry['value'])
         except Exception:
-            LOG.error('an error occurs', sys.exc_info())
+            LOG.error('an error occurs: %s', sys.exc_info())
             return False
         return True
 

@@ -102,6 +102,7 @@ class BambukPortInfo(object):
                 'key': chassis['id'],
                 'value': jsonutils.dumps(chassis)
             })
+        return port_connect_db
 
     def _lport(self, port):
         # TODO: calculate the tunnel_key
