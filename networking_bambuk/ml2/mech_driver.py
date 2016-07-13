@@ -13,6 +13,7 @@
 #
 
 from networking_bambuk._i18n import _LI
+from networking_bambuk.common import port_infos
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
 from neutron import context as n_context
@@ -21,11 +22,12 @@ from neutron.api.v2 import attributes
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.db import api as db_api
+from neutron.common import topics
 from neutron.db.portbindings_base import PortBindingBaseMixin
-from neutron.extensions import allowedaddresspairs as addr_pair
-from neutron.extensions import portsecurity as psec
-from neutron.plugins.ml2.driver_api import MechanismDriver
+from neutron.extensions import portbindings
+from neutron.plugins.ml2 import driver_api
+from neutron.plugins.ml2 import managers
+from neutron.plugins.ml2 import rpc
 
 from oslo_log import log
 
@@ -35,7 +37,7 @@ from oslo_serialization import jsonutils
 LOG = log.getLogger(__name__)
 
 
-class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
+class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
     """Bambuk ML2 mechanism driver
     """
     
@@ -44,6 +46,13 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
         self._bambuk_client = BambukAgentClient()
         self._plugin_property = None
                             
+        self.supported_vnic_types = [portbindings.VNIC_NORMAL]
+        self.vif_type = portbindings.VIF_TYPE_OVS,
+        self.vif_details = {
+            portbindings.CAP_PORT_FILTER: True,
+            portbindings.OVS_HYBRID_PLUG: True
+        }
+
         # Handle security group/rule notifications
         registry.subscribe(self.create_security_group,
                            resources.SECURITY_GROUP,
@@ -57,6 +66,10 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
         registry.subscribe(self.delete_security_group_rule,
                            resources.SECURITY_GROUP_RULE,
                            events.BEFORE_DELETE)
+
+        self.notifier = rpc.AgentNotifierApi(topics.AGENT)
+        self.type_manager = managers.TypeManager()
+        self.rpc_tunnel = rpc.RpcCallbacks(self.notifier, self.type_manager)
 
     @property
     def _plugin(self):
@@ -112,14 +125,17 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
 
     def _apply_port(self, context, port):
         binding_profile = port['binding:profile']
-        device_id = port['device_id']
+        if 'provider_mgnt_ip' not in binding_profile:
+            return
+
+        host_id = port['binding:host_id']
         provider_mgnt_ip = binding_profile['provider_mgnt_ip']
         if 'provider_data_ip' in binding_profile:
             provider_data_ip = binding_profile['provider_data_ip']
         else:
             provider_data_ip = provider_mgnt_ip
         server_conf = {
-            'device_id': device_id,
+            'device_id': host_id,
             'local_ip': provider_data_ip
         }
 
@@ -128,63 +144,52 @@ class BambukMechanismDriver(MechanismDriver, PortBindingBaseMixin):
         if not agent_state:
             return
 
+        ctx = n_context.get_admin_context()
         # create or update the agent
         agent = self._plugin.create_or_update_agent(
-            n_context.get_admin_context_without_session(), agent_state)
+            ctx, agent_state)
         LOG.debug(agent)
         agents = self._plugin.get_agents(
-            context,
+            ctx,
             filters={
-                'agent_type': agent_state['agent_type'],
-                'host': device_id
+                'agent_type': [agent_state['agent_type']],
+                'host': [host_id]
             }
         )
-        if not agents:
+        LOG.debug(agents)
+        if not agents or len(agents) == 0:
             return
+        
+        endpoints = []
 
-        # lport
-        # TODO: calculate the tunnel_key
-        tunnel_key = '1'
-        ips = [ip['ip_address'] for ip in port.get('fixed_ips', [])]
-        if port.get('device_owner') == "network:router_gateway":
-            chassis = None
-        else:
-            chassis = port.get('binding:host_id', None)
-        lport = {}
-        lport['id'] = port['id']
-        lport['lswitch'] = port['network_id']
-        lport['macs'] =[port['mac_address']]
-        lport['ips'] = ips
-        lport['name'] = port.get('name', 'no_port_name')
-        lport['enabled'] = port.get('admin_state_up', None)
-        lport['chassis'] = chassis
-        lport['tunnel_key'] = tunnel_key
-        lport['device_owner'] = port.get('device_owner', None)
-        lport['device_id'] = port.get('device_id', None)
-        lport['security_groups'] = port.get('security_groups', None)
-        lport['port_security_enabled'] = port.get(psec.PORTSECURITY, False)
-        lport['allowed_address_pairs'] = port.get(addr_pair.ADDRESS_PAIRS, None)
-        lport_json = jsonutils.dumps(lport)
+        for tunnel_type in agent_state['configurations']['tunnel_types']:
+            entry = self.rpc_tunnel.tunnel_sync(
+                ctx,
+                tunnel_ip=provider_data_ip,
+                tunnel_type=tunnel_type,
+                host=host_id
+            )
+            endpoints.append(entry)
+        port_info = port_infos.BambukPortInfo(port, endpoints)
+        self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
 
-        # TODO: security groups
-        sg_info = self._plugin.security_group_info_for_ports(
-            context, {port['id']: port})
-        LOG.debug(sg_info)
-
-        # TODO: list of endpoints
-
-        self._bambuk_client.apply(
-            [{'table': 'lport', 'key': port['id'], 'value': lport_json}],
-            provider_mgnt_ip)
-
-    def create_port_precommit(self, context):
+    def create_port_postcommit(self, context):
         port = context.current
-        binding_profile = port['binding:profile']
-        if 'provider_mgnt_ip' in binding_profile:
-            self._apply_port(context, port)
+        self._apply_port(context, port)
 
-    def update_port_precommit(self, context):
+    def update_port_postcommit(self, context):
         port = context.current
-        binding_profile = port['binding:profile']
-        if 'provider_mgnt_ip' in binding_profile:
-            self._apply_port(context, port)
+        self._apply_port(context, port)
+
+    def bind_port(self, context):
+        port = context.current
+        vnic_type = port.get(portbindings.VNIC_TYPE, portbindings.VNIC_NORMAL)
+        if vnic_type not in self.supported_vnic_types:
+            LOG.debug("Refusing to bind due to unsupported vnic_type: %s",
+                      vnic_type)
+            return
+        for segment_to_bind in context.segments_to_bind:
+            context.set_binding(segment_to_bind[driver_api.ID],
+                                self.vif_type,
+                                self.vif_details,
+                                'ACTIVE')

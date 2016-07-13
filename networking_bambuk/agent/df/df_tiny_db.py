@@ -114,7 +114,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
                 'host': server_conf['device_id'],
                 'topic': 'N/A',
                 'configurations': {
-                    'tunnel_types': 'vxlan',
+                    'tunnel_types': ['vxlan'],
                     'tunneling_ip': server_conf['local_ip'],
                     'l2_population': True,
                     'arp_responder_enabled': True,
