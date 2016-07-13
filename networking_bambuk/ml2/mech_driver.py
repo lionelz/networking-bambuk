@@ -169,6 +169,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
                 tunnel_type=tunnel_type,
                 host=host_id
             )
+            entry['tunnel_type'] = tunnel_type
             endpoints.append(entry)
         port_info = port_infos.BambukPortInfo(port, endpoints)
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)

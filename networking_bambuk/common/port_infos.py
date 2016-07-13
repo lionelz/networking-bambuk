@@ -28,6 +28,7 @@ LOG = log.getLogger(__name__)
 class BambukPortInfo(object):
 
     def __init__(self, port, endpoints):
+        self._plugin_property = None
         self._port = port
         self._endpoints = endpoints
         self._calculate_obj()
@@ -46,20 +47,21 @@ class BambukPortInfo(object):
 
         # security groups
         self.secgroup = []
-        if self._lport['security_groups']: 
+        if self.lport['security_groups']: 
             sgs = self._plugin.get_security_groups(
                 ctx, {'id': self.lport['security_groups']})
             for sg in sgs:
                 self.secgroup.append(self._secgroup(sg))
 
         # logical switch
-        network = self._plugin.get_network(ctx, self.port['network_id'])
+        network = self._plugin.get_network(ctx, self._port['network_id'])
         subnets = self._plugin.get_subnets(
-            ctx, filters={'network_id':[self.port['network_id']]})
+            ctx, filters={'network_id':[self._port['network_id']]})
         self.lswitch = self._lswitch(network, subnets)
 
         # list of chassis
         self.chassis = []
+        print(self._endpoints)
         for entry in self._endpoints:
             for tunnel in entry['tunnels']:
                 self.chassis.append({

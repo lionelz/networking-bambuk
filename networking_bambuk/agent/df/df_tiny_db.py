@@ -134,9 +134,8 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             self.clear_all()
             for entry in connect_db:
                 self.create_key(entry['table'], entry['key'], entry['value'])
-        except:
-            e = sys.exc_info()[0]
-            LOG.error('an error occurs %s' % e)
+        except Exception:
+            LOG.error('an error occurs', sys.exc_info())
             return False
         return True
 
