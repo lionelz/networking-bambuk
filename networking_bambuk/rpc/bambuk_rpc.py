@@ -16,7 +16,7 @@
 import abc
 import json
 import six
-import threading
+import eventlet
 
 from networking_bambuk.common import  config
 from oslo_log import log
@@ -91,8 +91,8 @@ class BambukRpcReceiver(BambukRpc):
     def __init__(self, bambuk_agent):
         self._bambuk_agent = bambuk_agent
         self._running = True
-        thread = threading.Thread(target=self.receive)
-        thread.start()
+        self.pool = eventlet.GreenPool()
+        self.thread = self.pool.spawn_n(self.receive)
 
     @abc.abstractmethod
     def receive(self):

@@ -66,6 +66,7 @@ class BambukPortInfo(object):
             for tunnel in entry['tunnels']:
                 self.chassis.append({
                     'tunnel_type': entry['tunnel_type'],
+                    'topic': None,
                     'ip': tunnel['ip_address'],
                     'id': tunnel['host'],
                     'name': tunnel['host'],
@@ -114,6 +115,7 @@ class BambukPortInfo(object):
             chassis = port.get('binding:host_id', None)
         lport = {}
         lport['id'] = port['id']
+        lport['topic'] = None
         lport['lswitch_id'] = port['network_id']
         lport['macs'] =[port['mac_address']]
         lport['ips'] = ips
@@ -131,6 +133,7 @@ class BambukPortInfo(object):
     def _secgroup(self, sg):
         secgroup = {}
         secgroup['id'] = sg['id']
+        secgroup['topic'] = None
         secgroup['name'] = sg.get('name', 'no_sg_name')
         secgroup['rules'] = sg['security_group_rules']
         return secgroup
@@ -138,6 +141,7 @@ class BambukPortInfo(object):
     def _subnet(self, subnet):
         lsubnet = {}
         lsubnet['id'] = subnet['id']
+        lsubnet['topic'] = None
         lsubnet['lswitch'] = subnet['network_id']
         lsubnet['name'] = subnet.get('name', 'no_subnet_name')
         lsubnet['enable_dhcp'] = subnet['enable_dhcp']
@@ -151,6 +155,7 @@ class BambukPortInfo(object):
     def _lswitch(self, network, subnets):
         lswitch = {}
         lswitch['id'] = network['id']
+        lswitch['topic'] = None
         lswitch['name'] = network.get('name', 'no_network_name')
         lswitch['network_type'] = network.get('provider:network_type')
         lswitch['segmentation_id'] = network.get('provider:segmentation_id')

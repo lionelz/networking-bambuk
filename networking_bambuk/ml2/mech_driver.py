@@ -13,6 +13,7 @@
 #
 
 from networking_bambuk._i18n import _LI
+from networking_bambuk.common import config
 from networking_bambuk.common import port_infos
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
@@ -159,19 +160,19 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         LOG.debug(agents)
         if not agents or len(agents) == 0:
             return
-        
-        endpoints = []
+        if not config.get_l2_population():
+            endpoints = []
 
-        for tunnel_type in agent_state['configurations']['tunnel_types']:
-            entry = self.rpc_tunnel.tunnel_sync(
-                ctx,
-                tunnel_ip=provider_data_ip,
-                tunnel_type=tunnel_type,
-                host=host_id
-            )
-            entry['tunnel_type'] = tunnel_type
-            endpoints.append(entry)
-        port_info = port_infos.BambukPortInfo(port, endpoints)
+            for tunnel_type in agent_state['configurations']['tunnel_types']:
+                entry = self.rpc_tunnel.tunnel_sync(
+                    ctx,
+                    tunnel_ip=provider_data_ip,
+                    tunnel_type=tunnel_type,
+                    host=host_id
+                )
+                entry['tunnel_type'] = tunnel_type
+                endpoints.append(entry)
+            port_info = port_infos.BambukPortInfo(port, endpoints)
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
 
     def create_port_postcommit(self, context):

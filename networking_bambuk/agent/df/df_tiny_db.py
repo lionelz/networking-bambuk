@@ -35,12 +35,14 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
 
     ##########################################################################
     def initialize(self, db_ip, db_port, **args):
+        LOG.info("TinyDbDriver initialize - begin")
         # open json file with tinyDb
         self._db = TinyDB(config.get_json_db_cache())
         # start the configured receiver
         self._bambuk_receiver = importutils.import_object(
             config.get_receiver(), bambuk_agent=self)
         # TODO: check if server in DB and refresh the connectivity DB
+        LOG.info("TinyDbDriver initialize - end")
 
     def support_publish_subscribe(self):
         return False

@@ -30,6 +30,9 @@ bambuk_opts = [
     cfg.IntOpt('listener_port',
                default=5555,
                help=_('The port to listen')),
+    cfg.BoolOpt('l2_population', default=False,
+                help=_("Extension to use alongside ml2 plugin's l2population "
+                       "mechanism driver.")),
     cfg.StrOpt('bambuk_host',
                help=_('The NIC IP for rpc that needs to listen')),
 ]
@@ -66,4 +69,7 @@ def get_listener_ip():
 def get_listener_port():
     return cfg.CONF.bambuk.listener_port
 
+
+def get_l2_population():
+    return cfg.CONF.bambuk.l2_population
 

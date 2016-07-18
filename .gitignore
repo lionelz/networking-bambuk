@@ -3,3 +3,4 @@
 .venv
 networking_bambuk.egg-info
 .settings
+.idea
