@@ -91,8 +91,7 @@ class BambukRpcReceiver(BambukRpc):
     def __init__(self, bambuk_agent):
         self._bambuk_agent = bambuk_agent
         self._running = True
-        self.pool = eventlet.GreenPool()
-        self.thread = self.pool.spawn_n(self.receive)
+        eventlet.spawn_n(self.receive)
 
     @abc.abstractmethod
     def receive(self):

@@ -13,7 +13,7 @@
 #
 
 from oslo_log import log
-import zmq
+from eventlet.green import zmq
 from zmq import error
 from networking_bambuk.rpc import bambuk_rpc
 from networking_bambuk.common import config

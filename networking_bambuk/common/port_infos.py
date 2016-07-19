@@ -116,7 +116,7 @@ class BambukPortInfo(object):
         lport = {}
         lport['id'] = port['id']
         lport['topic'] = None
-        lport['lswitch_id'] = port['network_id']
+        lport['lswitch'] = port['network_id']
         lport['macs'] =[port['mac_address']]
         lport['ips'] = ips
         lport['name'] = port.get('name', 'no_port_name')
