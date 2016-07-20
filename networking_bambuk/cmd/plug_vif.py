@@ -60,7 +60,7 @@ def create_veth_pair(dev1_name, dev2_name):
 
 
 def get_veth_pair_names2(iface_id):
-    return (("qvm%s" % iface_id)[:NIC_NAME_LEN],
+    return (("tap%s" % iface_id)[:NIC_NAME_LEN],
             ("qvo%s" % iface_id)[:NIC_NAME_LEN])
 
 

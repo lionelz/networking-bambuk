@@ -27,9 +27,10 @@ LOG = log.getLogger(__name__)
 
 class BambukPortInfo(object):
 
-    def __init__(self, port, endpoints):
+    def __init__(self, port, other_ports, endpoints):
         self._plugin_property = None
         self._port = port
+        self._other_ports = other_ports
         self._endpoints = endpoints
         self._calculate_obj()
 
@@ -42,8 +43,13 @@ class BambukPortInfo(object):
     def _calculate_obj(self):
         ctx = n_context.get_admin_context()
 
-        # lport
+        # port
         self.lport = self._lport(self._port)
+
+        # other ports
+        self.other_lports = []
+        for port in self._other_ports:
+            self.other_lports.append(self._lport(port))
 
         # security groups
         self.secgroup = []
@@ -80,6 +86,14 @@ class BambukPortInfo(object):
             'key': self.lport['id'],
             'value': jsonutils.dumps(self.lport)
         })
+
+        # list of other ports
+        for port in self.other_lports:
+            port_connect_db.append({
+                'table': 'lport',
+                'key': port['id'],
+                'value': jsonutils.dumps(port)
+            })
 
         # security groups
         for sg in self.secgroup:
