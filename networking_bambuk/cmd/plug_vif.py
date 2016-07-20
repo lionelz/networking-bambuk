@@ -85,6 +85,8 @@ def main():
     instance_id = sys.argv[3]
     veths = get_veth_pair_names2(iface_id)
     create_veth_pair(veths[0], veths[1])
+    execute('ip', 'link', 'set', veths[0], 'address', mac)
+    execute('ip', 'link', 'set', veths[1], 'address', mac)
     create_ovs_vif_port('br-int',
                         veths[0],
                         iface_id,
