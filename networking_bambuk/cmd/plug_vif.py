@@ -75,7 +75,7 @@ def create_ovs_vif_port(bridge, dev, iface_id, mac, instance_id):
                '--', 'set', 'Interface', dev,
                'external-ids:iface-id=%s' % iface_id,
                'external-ids:iface-status=active',
-               'external-ids:attached-mac=%s' % mac,
+#               'external-ids:attached-mac=%s' % mac,
                'external-ids:vm-uuid=%s' % instance_id])
 
 
@@ -83,10 +83,14 @@ def main():
     iface_id = sys.argv[1]
     mac = sys.argv[2]
     instance_id = sys.argv[3]
+    vif_type = sys.argv[4]
     veths = get_veth_pair_names2(iface_id)
-    create_veth_pair(veths[0], veths[1])
-    execute('ip', 'link', 'set', veths[0], 'address', mac)
-    execute('ip', 'link', 'set', veths[1], 'address', mac)
+    if vif_type == 'veth':
+        create_veth_pair(veths[0], veths[1])
+        execute('ip', 'link', 'set', veths[1], 'address', mac)
+    else:
+        execute('ip', 'tuntap', 'add', veths[0], 'mode', 'tap') 
+        execute('ip', 'link', 'set', veths[0], 'address', mac)
     create_ovs_vif_port('br-int',
                         veths[0],
                         iface_id,
