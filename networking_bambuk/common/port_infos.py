@@ -79,6 +79,20 @@ class BambukPortInfo(object):
                     'port': tunnel.get('udp_port'),
                 })
 
+    def chassis_db(self, c_db_in=None):
+        if c_db_in:
+            c_db = c_db_in
+        else:
+            c_db = []
+        # list of chassis
+        for chassis in self.chassis:
+            c_db.append({
+                'table': 'chassis',
+                'key': chassis['id'],
+                'value': jsonutils.dumps(chassis)
+            })
+        return c_db
+
     def to_db(self):
         port_connect_db = []
         port_connect_db.append({
@@ -111,12 +125,8 @@ class BambukPortInfo(object):
         })
 
         # list of chassis
-        for chassis in self.chassis:
-            port_connect_db.append({
-                'table': 'chassis',
-                'key': chassis['id'],
-                'value': jsonutils.dumps(chassis)
-            })
+        self.chassis_db(port_connect_db)
+
         return port_connect_db
 
     def _lport(self, port):

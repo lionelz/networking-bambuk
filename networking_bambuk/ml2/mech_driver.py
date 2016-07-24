@@ -33,6 +33,7 @@ from neutron.plugins.ml2 import rpc
 from oslo_log import log
 
 from oslo_serialization import jsonutils
+from networking_bambuk.ml2 import bambuk_db
 
 
 LOG = log.getLogger(__name__)
@@ -55,12 +56,6 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         }
 
         # Handle security group/rule notifications
-        registry.subscribe(self.create_security_group,
-                           resources.SECURITY_GROUP,
-                           events.AFTER_CREATE)
-        registry.subscribe(self.delete_security_group,
-                           resources.SECURITY_GROUP,
-                           events.BEFORE_DELETE)
         registry.subscribe(self.create_security_group_rule,
                            resources.SECURITY_GROUP_RULE,
                            events.AFTER_CREATE)
@@ -97,32 +92,40 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
             'key': key
         })
 
-    def create_security_group(self, resource, event, trigger, **kwargs):
-        sg = kwargs['security_group']
-        sg_id = sg['id']
-        if not 'name' in sg:
-            sg['name'] = 'no_sg_name'
-        rules = sg.get('security_group_rules')
-        for rule in rules:
-            del rule['tenant_id']
 
-        sg_json = jsonutils.dumps(sg)
+    def _get_vms(self, ports, exclude_ids=None):
+        vms = []
+        for port in ports:
+            if exclude_ids and port['id'] in exclude_ids:
+                continue 
+            binding_profile = port['binding:profile']
+            if 'provider_mgnt_ip' in binding_profile:
+                vms.append(binding_profile['provider_mgnt_ip'])
+        return vms
 
-        self._update('secgroup', sg_id, sg_json)
-
-    def delete_security_group(self, resource, event, trigger, **kwargs):
-        sg_id = kwargs['security_group_id']
-        self._delete('secgroup', sg_id)
+    def _update_sg(self, sg_id):
+        # get all the ports connected to the sg
+        ctx = n_context.get_admin_context()
+        ports = bambuk_db.get_ports_by_secgroup(ctx, sg_id)
+        sg = self._plugin.get_security_group(ctx, sg_id)
+        vms = self._get_vms(ports)
+            
+        self._bambuk_client.update(
+            {
+                'table': 'secgroup',
+                'key': self.secgroup['id'],
+                'value': jsonutils.dumps(sg)
+            }, vms)
 
     def create_security_group_rule(self, resource, event, trigger, **kwargs):
         sg_rule = kwargs['security_group_rule']
         sg_id = sg_rule['security_group_id']
-        # TODO: read the sg from the Db and update sg or create table secgrouprule
+        self._update_sg(sg_id)
 
     def delete_security_group_rule(self, resource, event, trigger, **kwargs):
         sg_rule = kwargs['security_group_rule']
         sg_id = sg_rule['security_group_id']
-        # TODO: read the sg from the Db and update sg or create table secgrouprule
+        self._update_sg(sg_id)
 
     def _apply_port(self, context, port):
         binding_profile = port['binding:profile']
@@ -168,20 +171,24 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         LOG.debug(port['network_id'])
         LOG.debug(other_ports)
 
-        if not config.get_l2_population():
-            endpoints = []
+        endpoints = []
 
-            for tunnel_type in agent_state['configurations']['tunnel_types']:
-                entry = self.rpc_tunnel.tunnel_sync(
-                    ctx,
-                    tunnel_ip=provider_data_ip,
-                    tunnel_type=tunnel_type,
-                    host=host_id
-                )
-                entry['tunnel_type'] = tunnel_type
-                endpoints.append(entry)
-            port_info = port_infos.BambukPortInfo(port, other_ports, endpoints)
+        for tunnel_type in agent_state['configurations']['tunnel_types']:
+            entry = self.rpc_tunnel.tunnel_sync(
+                ctx,
+                tunnel_ip=provider_data_ip,
+                tunnel_type=tunnel_type,
+                host=host_id
+            )
+            entry['tunnel_type'] = tunnel_type
+            endpoints.append(entry)
+        port_info = port_infos.BambukPortInfo(port, other_ports, endpoints)
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
+
+        # update all other ports for the maybe new endpoint
+        vms = self._get_vms(other_ports, [port['id']])
+        self._bambuk_client.update(port_info.chassis_db(), vms)
+        
 
     def create_port_postcommit(self, context):
         port = context.current

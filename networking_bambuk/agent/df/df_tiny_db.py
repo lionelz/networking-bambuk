@@ -145,9 +145,14 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
 
     def update(self, connect_db_update):
         try:
-            self.set_key(connect_db_update['table'],
-                         connect_db_update['key'],
-                         connect_db_update['value'])
+            if isinstance(connect_db_update, list):
+                cdb_updates = connect_db_update
+            else:
+                cdb_updates = [connect_db_update]
+            for cdb_update in cdb_updates:
+                self.set_key(cdb_update['table'],
+                         cdb_update['key'],
+                         cdb_update['value'])
         except:
             e = sys.exc_info()[0]
             LOG.error('an error occurs %s' % e)
@@ -156,8 +161,13 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
 
     def delete(self, connect_db_delete):
         try:
-            self.delete_key(connect_db_delete['table'],
-                            connect_db_delete['key'])
+            if isinstance(connect_db_delete, list):
+                cdb_deletes = connect_db_delete
+            else:
+                cdb_deletes = [connect_db_delete]
+            for cdb_delete in cdb_deletes:
+                self.delete_key(cdb_delete['table'],
+                                cdb_deletes['key'])
         except:
             e = sys.exc_info()[0]
             LOG.error('an error occurs %s' % e)

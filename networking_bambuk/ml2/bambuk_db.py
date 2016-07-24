@@ -13,16 +13,18 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from oslo_serialization import jsonutils
-from oslo_utils import timeutils
-
-from neutron.common import constants as const
-from neutron.db import agents_db
 from neutron.db import models_v2
-from neutron.plugins.ml2 import models as ml2_models
+from neutron.db import securitygroups_db
 
 
-def get_ports_by_secgroup(session, secgroup_id):
-    return []
+def get_ports_by_secgroup(ctx, security_group_id):
+    with ctx.session.begin(subtransactions=True):
+        sg_id = securitygroups_db.SecurityGroupPortBinding.security_group_id
+        port_id = securitygroups_db.SecurityGroupPortBinding.port_id
+        query = ctx.session.query(models_v2.Port)
+        query = query.join(securitygroups_db.SecurityGroupPortBinding,
+                           port_id == models_v2.Port.id)
+        query = query.filter(sg_id == security_group_id)
+        return query.all()
 
 
