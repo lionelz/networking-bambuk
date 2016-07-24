@@ -27,9 +27,10 @@ def device_exists(device):
     return os.path.exists('/sys/class/net/%s' % device)
 
 
-def execute(*cmd, **kwargs):
+def execute(*cmd):
+    print(cmd)
     try:
-        subprocess.Popen(list(cmd))
+        subprocess.call(list(cmd))
     except OSError as err:
         print('Got an OSError\ncommand: %(cmd)r\n'
               'errno: %(errno)r' % {"cmd": cmd, "errno": err.errno})
@@ -37,31 +38,8 @@ def execute(*cmd, **kwargs):
         time.sleep(0)
 
 
-def delete_net_dev(dev):
-    """Delete a network device only if it exists."""
-    if device_exists(dev):
-        execute('ip', 'link', 'delete', dev, run_as_root=True,
-                check_exit_code=False)
-
-
-def create_veth_pair(dev1_name, dev2_name):
-    """Create a pair of veth devices with the specified names,
-    deleting any previous devices with those names.
-    """
-    for dev in [dev1_name, dev2_name]:
-        delete_net_dev(dev)
-
-    execute('ip', 'link', 'add', dev1_name, 'type', 'veth', 'peer',
-            'name', dev2_name, run_as_root=True)
-    for dev in [dev1_name, dev2_name]:
-        execute('ip', 'link', 'set', dev, 'up', run_as_root=True)
-        execute('ip', 'link', 'set', dev, 'promisc', 'on',
-                      run_as_root=True)
-
-
-def get_veth_pair_names2(iface_id):
-    return (("tap%s" % iface_id)[:NIC_NAME_LEN],
-            ("qvo%s" % iface_id)[:NIC_NAME_LEN])
+def get_tap_name(iface_id):
+    return ("tap%s" % iface_id)[:NIC_NAME_LEN]
 
 
 def ovs_vsctl(args):
@@ -73,9 +51,10 @@ def create_ovs_vif_port(bridge, dev, iface_id, mac, instance_id):
     ovs_vsctl(['--', '--if-exists', 'del-port', dev, '--',
                'add-port', bridge, dev,
                '--', 'set', 'Interface', dev,
+               'type=internal',
                'external-ids:iface-id=%s' % iface_id,
                'external-ids:iface-status=active',
-#               'external-ids:attached-mac=%s' % mac,
+               'external-ids:attached-mac=%s' % mac,
                'external-ids:vm-uuid=%s' % instance_id])
 
 
@@ -83,19 +62,15 @@ def main():
     iface_id = sys.argv[1]
     mac = sys.argv[2]
     instance_id = sys.argv[3]
-    vif_type = sys.argv[4]
-    veths = get_veth_pair_names2(iface_id)
-    if vif_type == 'veth':
-        create_veth_pair(veths[0], veths[1])
-        execute('ip', 'link', 'set', veths[1], 'address', mac)
-    else:
-        execute('ip', 'tuntap', 'add', veths[0], 'mode', 'tap') 
-        execute('ip', 'link', 'set', veths[0], 'address', mac)
+    tap = get_tap_name(iface_id)
+    ovs_vsctl(['del-port', 'br-int', tap])
     create_ovs_vif_port('br-int',
-                        veths[0],
+                        tap,
                         iface_id,
                         mac,
                         instance_id)
+    execute('ip', 'link', 'set', tap, 'address', mac)
+    execute('ip', 'link', 'set', tap, 'up')
 
 if __name__ == '__main__':
     main()
