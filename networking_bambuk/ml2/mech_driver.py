@@ -20,11 +20,12 @@ from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 from neutron import context as n_context
 from neutron import manager
 from neutron.api.v2 import attributes
+from neutron.db import db_base_plugin_v2
+from neutron.db.portbindings_base import PortBindingBaseMixin
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
 from neutron.common import topics
-from neutron.db.portbindings_base import PortBindingBaseMixin
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
 from neutron.plugins.ml2 import managers
@@ -39,12 +40,20 @@ from networking_bambuk.ml2 import bambuk_db
 LOG = log.getLogger(__name__)
 
 
+def _extend_port_dict_standard_attr_id(res, port):
+    res['standard_attr_id'] = port['standard_attr_id']
+    return res
+
+
 class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
     """Bambuk ML2 mechanism driver
     """
     
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
+        # Register dict extend port attributes
+        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+            attributes.PORTS, ['_extend_port_dict_standard_attr_id'])
         self._bambuk_client = BambukAgentClient()
         self._plugin_property = None
                             
@@ -71,6 +80,8 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
     def _plugin(self):
         if self._plugin_property is None:
             self._plugin_property = manager.NeutronManager.get_plugin()
+            self._plugin_property._extend_port_dict_standard_attr_id = (
+                _extend_port_dict_standard_attr_id)
         return self._plugin_property
 
     def _get_attribute(self, obj, attribute):
@@ -94,13 +105,13 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
 
 
     def _get_vms(self, ports, exclude_ids=None):
-        vms = []
+        vms = set()
         for port in ports:
             if exclude_ids and port['id'] in exclude_ids:
                 continue 
             binding_profile = port['binding:profile']
             if 'provider_mgnt_ip' in binding_profile:
-                vms.append(binding_profile['provider_mgnt_ip'])
+                vms.add(binding_profile['provider_mgnt_ip'])
         return vms
 
     def _update_sg(self, sg_id):
@@ -149,20 +160,23 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
             return
 
         ctx = n_context.get_admin_context()
-        # create or update the agent
-        agent = self._plugin.create_or_update_agent(
-            ctx, agent_state)
-        LOG.debug(agent)
-        agents = self._plugin.get_agents(
-            ctx,
-            filters={
-                'agent_type': [agent_state['agent_type']],
-                'host': [host_id]
-            }
-        )
-        LOG.debug(agents)
-        if not agents or len(agents) == 0:
-            return
+
+        if config.get_l2_population():
+            # create or update the agent
+            agent = self._plugin.create_or_update_agent(
+                ctx, agent_state)
+            LOG.debug(agent)
+            agents = self._plugin.get_agents(
+                ctx,
+                filters={
+                    'agent_type': [agent_state['agent_type']],
+                    'host': [host_id]
+                }
+            )
+            LOG.debug(agents)
+            if not agents or len(agents) == 0:
+                return
+
         #the other port of the network
         other_ports = self._plugin.get_ports(
             ctx,
@@ -170,9 +184,11 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         )
         LOG.debug(port['network_id'])
         LOG.debug(other_ports)
+        for op in other_ports:
+            if port['id'] == op['id']:
+                port_db = op
 
         endpoints = []
-
         for tunnel_type in agent_state['configurations']['tunnel_types']:
             entry = self.rpc_tunnel.tunnel_sync(
                 ctx,
@@ -182,13 +198,15 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
             )
             entry['tunnel_type'] = tunnel_type
             endpoints.append(entry)
-        port_info = port_infos.BambukPortInfo(port, other_ports, endpoints)
+        port_info = port_infos.BambukPortInfo(port_db, other_ports, endpoints)
+
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
 
         # update all other ports for the maybe new endpoint
         vms = self._get_vms(other_ports, [port['id']])
-        self._bambuk_client.update(port_info.chassis_db(), vms)
-        
+        update_connect_db = port_info.chassis_db()
+        port_info.port_db(update_connect_db)
+        self._bambuk_client.update(update_connect_db, vms)
 
     def create_port_postcommit(self, context):
         port = context.current

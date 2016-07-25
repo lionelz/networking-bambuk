@@ -93,13 +93,20 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def to_db(self):
-        port_connect_db = []
-        port_connect_db.append({
+    def port_db(self, c_db_in=None):
+        if c_db_in:
+            c_db = c_db_in
+        else:
+            c_db = []
+        c_db.append({
             'table': 'lport',
             'key': self.lport['id'],
             'value': jsonutils.dumps(self.lport)
         })
+        return c_db
+
+    def to_db(self):
+        port_connect_db = self.port_db()
 
         # list of other ports
         for port in self.other_lports:
@@ -130,8 +137,7 @@ class BambukPortInfo(object):
         return port_connect_db
 
     def _lport(self, port):
-        # TODO: calculate the tunnel_key
-        tunnel_key = '1'
+        LOG.debug("xxxxxx port: %s" % port)
         ips = [ip['ip_address'] for ip in port.get('fixed_ips', [])]
         if port.get('device_owner') == "network:router_gateway":
             chassis = None
@@ -146,7 +152,7 @@ class BambukPortInfo(object):
         lport['name'] = port.get('name', 'no_port_name')
         lport['enabled'] = port.get('admin_state_up', None)
         lport['chassis'] = chassis
-        lport['tunnel_key'] = tunnel_key
+        lport['tunnel_key'] = port['standard_attr_id']
         lport['device_owner'] = port.get('device_owner', None)
         lport['device_id'] = port.get('device_id', None)
         lport['security_groups'] = port.get('security_groups', None)
