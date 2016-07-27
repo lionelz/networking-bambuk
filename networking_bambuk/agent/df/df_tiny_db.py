@@ -151,8 +151,8 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
                 cdb_updates = [connect_db_update]
             for cdb_update in cdb_updates:
                 self.set_key(cdb_update['table'],
-                         cdb_update['key'],
-                         cdb_update['value'])
+                             cdb_update['key'],
+                             cdb_update['value'])
         except:
             e = sys.exc_info()[0]
             LOG.error('an error occurs %s' % e)

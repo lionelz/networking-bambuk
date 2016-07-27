@@ -13,49 +13,30 @@
 #
 
 from networking_bambuk._i18n import _LI
-from networking_bambuk.common import config
-from networking_bambuk.common import port_infos
-from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
-from neutron import context as n_context
-from neutron import manager
-from neutron.api.v2 import attributes
-from neutron.db import db_base_plugin_v2
+from neutron.db import securitygroups_db
 from neutron.db.portbindings_base import PortBindingBaseMixin
 from neutron.callbacks import events
 from neutron.callbacks import registry
 from neutron.callbacks import resources
-from neutron.common import topics
 from neutron.extensions import portbindings
 from neutron.plugins.ml2 import driver_api
-from neutron.plugins.ml2 import managers
-from neutron.plugins.ml2 import rpc
 
 from oslo_log import log
 
-from oslo_serialization import jsonutils
-from networking_bambuk.ml2 import bambuk_db
+from networking_bambuk.db.bambuk import create_update_log
+from networking_bambuk.db.bambuk import bambuk_db
 
 
 LOG = log.getLogger(__name__)
 
 
-def _extend_port_dict_standard_attr_id(res, port):
-    res['standard_attr_id'] = port['standard_attr_id']
-    return res
-
-
 class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
     """Bambuk ML2 mechanism driver
     """
-    
+
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
-        # Register dict extend port attributes
-        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            attributes.PORTS, ['_extend_port_dict_standard_attr_id'])
-        self._bambuk_client = BambukAgentClient()
-        self._plugin_property = None
                             
         self.supported_vnic_types = [portbindings.VNIC_NORMAL]
         self.vif_type = portbindings.VIF_TYPE_OVS,
@@ -67,154 +48,106 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         # Handle security group/rule notifications
         registry.subscribe(self.create_security_group_rule,
                            resources.SECURITY_GROUP_RULE,
+                           events.PRECOMMIT_CREATE)
+        registry.subscribe(self.after_create_security_group_rule,
+                           resources.SECURITY_GROUP_RULE,
                            events.AFTER_CREATE)
         registry.subscribe(self.delete_security_group_rule,
                            resources.SECURITY_GROUP_RULE,
                            events.BEFORE_DELETE)
+        registry.subscribe(self.after_delete_security_group_rule,
+                           resources.SECURITY_GROUP_RULE,
+                           events.AFTER_DELETE)
 
-        self.notifier = rpc.AgentNotifierApi(topics.AGENT)
-        self.type_manager = managers.TypeManager()
-        self.rpc_tunnel = rpc.RpcCallbacks(self.notifier, self.type_manager)
-
-    @property
-    def _plugin(self):
-        if self._plugin_property is None:
-            self._plugin_property = manager.NeutronManager.get_plugin()
-            self._plugin_property._extend_port_dict_standard_attr_id = (
-                _extend_port_dict_standard_attr_id)
-        return self._plugin_property
-
-    def _get_attribute(self, obj, attribute):
-        res = obj.get(attribute)
-        if res is attributes.ATTR_NOT_SPECIFIED:
-            res = None
-        return res
-
-    def _update(self, table, key, value, vms):
-        self._bambuk_client.update({
-            'table': table,
-            'key': key,
-            'value': value,
-        }, vms)
-
-    def _delete(self, table, key):
-        self._bambuk_client.delete({
-            'table': table,
-            'key': key
-        })
-
-
-    def _get_vms(self, ports, exclude_ids=None):
-        vms = set()
-        for port in ports:
-            if exclude_ids and port['id'] in exclude_ids:
-                continue 
-            binding_profile = port['binding:profile']
-            if 'provider_mgnt_ip' in binding_profile:
-                vms.add(binding_profile['provider_mgnt_ip'])
-        return vms
-
-    def _update_sg(self, sg_id):
-        # get all the ports connected to the sg
-        ctx = n_context.get_admin_context()
-        ports = bambuk_db.get_ports_by_secgroup(ctx, sg_id)
-        sg = self._plugin.get_security_group(ctx, sg_id)
-        vms = self._get_vms(ports)
-            
-        self._bambuk_client.update(
-            {
-                'table': 'secgroup',
-                'key': self.secgroup['id'],
-                'value': jsonutils.dumps(sg)
-            }, vms)
+    def _get_sg(self, ctx, sg_rule_id):
+        with ctx.session.begin(subtransactions=True):
+            # retrieve the SG
+            sgr_sg_id = securitygroups_db.SecurityGroupRule.security_group_id
+            sgr_id = securitygroups_db.SecurityGroupRule.id
+            query = ctx.session.query(securitygroups_db.SecurityGroup)
+            query = query.join(securitygroups_db.SecurityGroupRule,
+                               sgr_sg_id == securitygroups_db.SecurityGroup.id)
+            query = query.filter(sgr_id == sg_rule_id)
+            return query.one()
 
     def create_security_group_rule(self, resource, event, trigger, **kwargs):
-        sg_rule = kwargs['security_group_rule']
-        sg_id = sg_rule['security_group_id']
-        self._update_sg(sg_id)
+        sg_rule_id = kwargs['security_group_rule_id']
+        context = kwargs['context']
+        sg = self._get_sg(context, sg_rule_id)
+        create_update_log.create_bambuk_update_log(
+            context,
+            sg,
+            bambuk_db.OBJ_TYPE_SECURITY_GROUP,
+            bambuk_db.ACTION_UPDATE,
+        )
+
+    def after_create_security_group_rule(self,
+                                         resource,
+                                         event,
+                                         trigger,
+                                         **kwargs):
+        create_update_log.awake()
 
     def delete_security_group_rule(self, resource, event, trigger, **kwargs):
-        sg_rule = kwargs['security_group_rule']
-        sg_id = sg_rule['security_group_id']
-        self._update_sg(sg_id)
+        sg_rule_id = kwargs['security_group_rule_id']
+        context = kwargs['context']
+        sg = self._get_sg(context, sg_rule_id)
+        create_update_log.create_bambuk_update_log(
+            context,
+            sg,
+            bambuk_db.OBJ_TYPE_SECURITY_GROUP,
+            bambuk_db.ACTION_UPDATE,
+        )
 
-    def _apply_port(self, context, port):
+    def after_delete_security_group_rule(self,
+                                         resource,
+                                         event,
+                                         trigger,
+                                         **kwargs):
+        create_update_log.awake()
+
+    def create_port_precommit(self, context):
+        port = context.current
         binding_profile = port['binding:profile']
         if 'provider_mgnt_ip' not in binding_profile:
             return
 
-        host_id = port['binding:host_id']
-        provider_mgnt_ip = binding_profile['provider_mgnt_ip']
-        if 'provider_data_ip' in binding_profile:
-            provider_data_ip = binding_profile['provider_data_ip']
-        else:
-            provider_data_ip = provider_mgnt_ip
-        server_conf = {
-            'device_id': host_id,
-            'local_ip': provider_data_ip
-        }
-
-        # get agent state
-        agent_state =  self._bambuk_client.state(server_conf, provider_mgnt_ip)
-        if not agent_state:
-            return
-
-        ctx = n_context.get_admin_context()
-
-        if config.get_l2_population():
-            # create or update the agent
-            agent = self._plugin.create_or_update_agent(
-                ctx, agent_state)
-            LOG.debug(agent)
-            agents = self._plugin.get_agents(
-                ctx,
-                filters={
-                    'agent_type': [agent_state['agent_type']],
-                    'host': [host_id]
-                }
-            )
-            LOG.debug(agents)
-            if not agents or len(agents) == 0:
-                return
-
-        #the other port of the network
-        other_ports = self._plugin.get_ports(
-            ctx,
-            filters={'network_id': [port['network_id']]}
+        create_update_log.create_bambuk_update_log(
+            context._plugin_context,
+            port,
+            bambuk_db.OBJ_TYPE_PORT,
+            bambuk_db.ACTION_UPDATE,
         )
-        LOG.debug(port['network_id'])
-        LOG.debug(other_ports)
-        for op in other_ports:
-            if port['id'] == op['id']:
-                port_db = op
-
-        endpoints = []
-        for tunnel_type in agent_state['configurations']['tunnel_types']:
-            entry = self.rpc_tunnel.tunnel_sync(
-                ctx,
-                tunnel_ip=provider_data_ip,
-                tunnel_type=tunnel_type,
-                host=host_id
-            )
-            entry['tunnel_type'] = tunnel_type
-            endpoints.append(entry)
-        port_info = port_infos.BambukPortInfo(port_db, other_ports, endpoints)
-
-        self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
-
-        # update all other ports for the maybe new endpoint
-        vms = self._get_vms(other_ports, [port['id']])
-        update_connect_db = port_info.chassis_db()
-        port_info.port_db(update_connect_db)
-        self._bambuk_client.update(update_connect_db, vms)
 
     def create_port_postcommit(self, context):
+        create_update_log.awake()
+
+    def update_port_precommit(self, context):
         port = context.current
-        self._apply_port(context, port)
+        binding_profile = port['binding:profile']
+        if 'provider_mgnt_ip' not in binding_profile:
+            return
+
+        create_update_log.create_bambuk_update_log(
+            context._plugin_context,
+            port,
+            bambuk_db.OBJ_TYPE_PORT,
+            bambuk_db.ACTION_UPDATE,
+        )
 
     def update_port_postcommit(self, context):
-        port = context.current
-        self._apply_port(context, port)
+        create_update_log.awake()
+
+    def delete_port_precommit(self, context):
+        create_update_log.create_bambuk_update_log(
+            context._plugin_context,
+            context.current,
+            bambuk_db.OBJ_TYPE_PORT,
+            bambuk_db.ACTION_DELETE,
+        )
+
+    def delete_port_postcommit(self, context):
+        create_update_log.awake()
 
     def bind_port(self, context):
         port = context.current

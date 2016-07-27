@@ -43,6 +43,13 @@ class BambukPortInfo(object):
     def _calculate_obj(self):
         ctx = n_context.get_admin_context()
 
+        # logical switch
+        network = self._plugin.get_network(ctx, self._port['network_id'])
+        subnets = self._plugin.get_subnets(
+            ctx, filters={'network_id':[self._port['network_id']]})
+        self.segmentation_id = network.get('provider:segmentation_id')
+        self.lswitch = self._lswitch(network, subnets)
+
         # port
         self.lport = self._lport(self._port)
 
@@ -58,12 +65,6 @@ class BambukPortInfo(object):
                 ctx, {'id': self.lport['security_groups']})
             for sg in sgs:
                 self.secgroup.append(self._secgroup(sg))
-
-        # logical switch
-        network = self._plugin.get_network(ctx, self._port['network_id'])
-        subnets = self._plugin.get_subnets(
-            ctx, filters={'network_id':[self._port['network_id']]})
-        self.lswitch = self._lswitch(network, subnets)
 
         # list of chassis
         self.chassis = []
@@ -137,7 +138,6 @@ class BambukPortInfo(object):
         return port_connect_db
 
     def _lport(self, port):
-        LOG.debug("xxxxxx port: %s" % port)
         ips = [ip['ip_address'] for ip in port.get('fixed_ips', [])]
         if port.get('device_owner') == "network:router_gateway":
             chassis = None
@@ -153,6 +153,10 @@ class BambukPortInfo(object):
         lport['enabled'] = port.get('admin_state_up', None)
         lport['chassis'] = chassis
         lport['tunnel_key'] = port['standard_attr_id']
+#         if self.segmentation_id:
+#             lport['tunnel_key'] = self.segmentation_id
+#         else:
+#             lport['tunnel_key'] = port['standard_attr_id']
         lport['device_owner'] = port.get('device_owner', None)
         lport['device_id'] = port.get('device_id', None)
         lport['security_groups'] = port.get('security_groups', None)

@@ -12,17 +12,20 @@
 #    under the License.
 #
 
-# THIS FILE IS MANAGED BY THE GLOBAL REQUIREMENTS REPO - DO NOT EDIT
-import setuptools
+"""start bambuk chain
+Revision ID: start_bambuk
+Revises: None
+Create Date: 2016-07-25- 10:00:10.000000
+"""
 
-# In python < 2.7.4, a lazy loading of package `pbr` will break
-# setuptools if some other modules registered functions in `atexit`.
-# solution from: http://bugs.python.org/issue15881#msg170215
-try:
-    import multiprocessing  # noqa
-except ImportError:
+# revision identifiers, used by Alembic.
+revision = 'start_bambuk'
+down_revision = None
+
+
+def upgrade():
     pass
 
-setuptools.setup(
-    setup_requires=['pbr>=1.8'],
-    pbr=True)
+
+def downgrade():
+    pass
