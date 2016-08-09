@@ -4,6 +4,7 @@ from neutron import manager
 from neutron.api.v2 import attributes
 from neutron.common import topics
 from neutron.db import db_base_plugin_v2, securitygroups_db, models_v2
+from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
 
@@ -55,9 +56,8 @@ class Action(object):
             None,
             '_port_result_filter_hook')
         self._plugin_property = None
-        self.notifier = rpc.AgentNotifierApi(topics.AGENT)
-        self.type_manager = managers.TypeManager()
-        self.rpc_tunnel = rpc.RpcCallbacks(self.notifier, self.type_manager)
+        self._notifier = rpc.AgentNotifierApi(topics.AGENT)
+        self._type_manager = managers.TypeManager()
 
     @property
     def _plugin(self):
@@ -96,6 +96,24 @@ class Action(object):
         pass
 
 
+TUNNEL_TYPES = {'vxlan': 'bambuk_vxlan'}
+
+
+def get_port_binding(port):
+    binding_profile = port['binding:profile']
+    if 'provider_mgnt_ip' not in binding_profile:
+        return None, None, None
+
+    host_id = port['binding:host_id']
+    provider_mgnt_ip = binding_profile['provider_mgnt_ip']
+    if 'provider_data_ip' in binding_profile:
+        provider_data_ip = binding_profile['provider_data_ip']
+    else:
+        provider_data_ip = provider_mgnt_ip
+
+    return host_id, provider_mgnt_ip, provider_data_ip
+
+
 class PortUpdateAction(Action):
 
     def process(self):
@@ -105,16 +123,10 @@ class PortUpdateAction(Action):
         # retrieve the port
         port = self._plugin.get_port(ctx, self._log['obj_id'])
 
-        binding_profile = port['binding:profile']
-        if 'provider_mgnt_ip' not in binding_profile:
+        host_id, provider_mgnt_ip, provider_data_ip = get_port_binding(port)
+        if not provider_mgnt_ip:
             return
  
-        host_id = port['binding:host_id']
-        provider_mgnt_ip = binding_profile['provider_mgnt_ip']
-        if 'provider_data_ip' in binding_profile:
-            provider_data_ip = binding_profile['provider_data_ip']
-        else:
-            provider_data_ip = provider_mgnt_ip
         server_conf = {
             'device_id': host_id,
             'local_ip': provider_data_ip
@@ -125,6 +137,8 @@ class PortUpdateAction(Action):
         if not agent_state:
             return
  
+        # TODO: add tunnel_types to the port data profile
+        # to support other than vxlan
         if config.get_l2_population():
             # create or update the agent
             agent = self._plugin.create_or_update_agent(
@@ -148,21 +162,50 @@ class PortUpdateAction(Action):
         )
         LOG.debug(port['network_id'])
         LOG.debug(other_ports)
+        endpoints = []
         for op in other_ports:
             if port['id'] == op['id']:
                 port_db = op
-     
-        endpoints = []
+            else:
+                op_h, op_mgnt_ip, op_data_ip = get_port_binding(
+                    port)
+                tunnel = {
+                    'ip_address': op_data_ip,
+                    'host': op_h,
+                    'udp_port': p_const.VXLAN_UDP_PORT,
+                }
+                # TODO: support other types from port data profile
+                tunnel_type = 'vxlan'
+                tunnels = None
+                for endpoint in endpoints:
+                    if endpoint['tunnel_type'] == tunnel_type:
+                        tunnels = endpoint['tunnels']
+                if tunnels:
+                    tunnels.append(tunnel)
+                else:
+                    endpoints.append({
+                        'tunnels': [tunnel],
+                        'tunnel_type': tunnel_type
+                    })
+
         for tunnel_type in agent_state['configurations']['tunnel_types']:
-            entry = self.rpc_tunnel.tunnel_sync(
-                ctx,
-                tunnel_ip=provider_data_ip,
-                tunnel_type=tunnel_type,
-                host=host_id
-            )
-            entry['tunnel_type'] = tunnel_type
-            LOG.info('entry %s' % entry)
-            endpoints.append(entry)
+            if tunnel_type in TUNNEL_TYPES:
+                driver = self._type_manager.drivers.get(
+                    TUNNEL_TYPES[tunnel_type])
+                LOG.debug("driver: %s" % driver)
+                if driver:
+                    tunnel = driver.obj.add_endpoint(provider_data_ip,
+                                                     host_id)
+                    # Notify all other listening agents
+                    self._notifier.tunnel_update(ctx,
+                                                 tunnel.ip_address,
+                                                 tunnel_type)
+                    # get the relevant tunnels entry
+                    entry = {'tunnels': driver.obj.get_endpoints()}
+                    LOG.debug("entry: %s" % entry)
+                    entry['tunnel_type'] = tunnel_type
+                    LOG.info('entry %s' % entry)
+                    endpoints.append(entry)
         port_info = port_infos.BambukPortInfo(port_db, other_ports, endpoints)
      
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
