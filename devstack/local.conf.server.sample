@@ -1,11 +1,5 @@
 #
-# Sample DevStack local.conf.
-#
-# This sample file is intended to be used for your typical DevStack environment
-# that's running all of OpenStack on a single host.  This can also be used as
-# the first host of a multi-host test environment.
-#
-# No changes to this sample configuration are required for this to work.
+# Sample DevStack local.conf server.
 #
 
 [[local|localrc]]
