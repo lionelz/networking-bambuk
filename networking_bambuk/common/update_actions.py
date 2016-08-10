@@ -167,26 +167,27 @@ class PortUpdateAction(Action):
             if port['id'] == op['id']:
                 port_db = op
             else:
-                op_h, op_mgnt_ip, op_data_ip = get_port_binding(
-                    port)
-                tunnel = {
-                    'ip_address': op_data_ip,
-                    'host': op_h,
-                    'udp_port': p_const.VXLAN_UDP_PORT,
-                }
-                # TODO: support other types from port data profile
-                tunnel_type = 'vxlan'
-                tunnels = None
-                for endpoint in endpoints:
-                    if endpoint['tunnel_type'] == tunnel_type:
-                        tunnels = endpoint['tunnels']
-                if tunnels:
-                    tunnels.append(tunnel)
-                else:
-                    endpoints.append({
-                        'tunnels': [tunnel],
-                        'tunnel_type': tunnel_type
-                    })
+                op_h, op_mgnt_ip, op_data_ip = get_port_binding(op)
+                if op_mgnt_ip:
+                    tunnel = {
+                        'ip_address': op_data_ip,
+                        'host': op_h,
+                        'udp_port': p_const.VXLAN_UDP_PORT,
+                    }
+                    # TODO: support other types from port data profile
+                    tunnel_type = 'vxlan'
+                    tunnels = None
+                    for endpoint in endpoints:
+                        if endpoint['tunnel_type'] == tunnel_type:
+                            tunnels = endpoint['tunnels']
+                    if tunnels:
+                        tunnels.append(tunnel)
+                    else:
+                        endpoints.append({
+                            'tunnels': [tunnel],
+                            'tunnel_type': tunnel_type
+                        })
+        LOG.debug("endpoints %s" % endpoints)
 
         for tunnel_type in agent_state['configurations']['tunnel_types']:
             if tunnel_type in TUNNEL_TYPES:
@@ -206,6 +207,7 @@ class PortUpdateAction(Action):
                     entry['tunnel_type'] = tunnel_type
                     LOG.info('entry %s' % entry)
                     endpoints.append(entry)
+        LOG.debug("endpoints %s" % endpoints)
         port_info = port_infos.BambukPortInfo(port_db, other_ports, endpoints)
      
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
