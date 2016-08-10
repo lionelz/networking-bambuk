@@ -36,12 +36,13 @@ l2_population = True
 enable_distributed_routing = True
 [vxlan]
 enable_vxlan = True
-local_ip = 192.168.10.111
+local_ip = 192.168.122.151
 [ovs]
 enable_tunneling = True
-local_ip = 192.168.10.111
+local_ip = 192.168.122.151
 [ml2]
-type_drivers = vxlan
+type_drivers = vxlan, bambuk_vxlan
+mechanism_drivers = openvswitch,l2population,bambuk
 tenant_network_types = vxlan
 
 [[post-config|$NEUTRON_CONF]]
