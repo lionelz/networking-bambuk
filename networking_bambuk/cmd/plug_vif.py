@@ -68,7 +68,7 @@ def main():
                         iface_id,
                         mac,
                         instance_id)
-#     execute('ip', 'link', 'set', tap, 'address', mac)
+    execute('ip', 'link', 'set', tap, 'address', mac)
     execute('ip', 'link', 'set', tap, 'up')
 
 if __name__ == '__main__':

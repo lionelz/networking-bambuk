@@ -26,6 +26,7 @@ from oslo_log import log
 
 from networking_bambuk.db.bambuk import create_update_log
 from networking_bambuk.db.bambuk import bambuk_db
+from networking_bambuk.ml2 import bambuk_l2pop
 
 
 LOG = log.getLogger(__name__)
@@ -58,6 +59,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         registry.subscribe(self.after_delete_security_group_rule,
                            resources.SECURITY_GROUP_RULE,
                            events.AFTER_DELETE)
+        self.bambuk_l2pop = bambuk_l2pop.BambukL2Pop()
 
     def _get_sg(self, ctx, sg_rule_id):
         with ctx.session.begin(subtransactions=True):
