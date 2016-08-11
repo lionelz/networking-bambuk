@@ -40,18 +40,31 @@ class BambukAgentClient(object):
         self._sender_pool = importutils.import_object(config.get_sender_pool())
 
     def state(self, server_conf, vm):
-        return self._sender_pool.get_sender(vm).state(server_conf)
+        try:
+            return self._sender_pool.get_sender(vm).state(server_conf)
+        except Exception as ex:
+            LOG.error('an error occurs: %s', ex)
+            return None
 
     def apply(self, connect_db, vm):
-        self._sender_pool.get_sender(vm).apply(connect_db)
+        try:
+            self._sender_pool.get_sender(vm).apply(connect_db)
+        except Exception as ex:
+            LOG.error('an error occurs: %s', ex)
 
     def update(self, connect_db_update, vms):
         for vm in vms:
-            self._sender_pool.get_sender(vm).update(connect_db_update)
+            try:
+                self._sender_pool.get_sender(vm).update(connect_db_update)
+            except Exception as ex:
+                LOG.error('an error occurs: %s', ex)
 
     def delete(self, connect_db_delete, vms):
         for vm in vms:
-            self._sender_pool.get_sender(vm).delete(connect_db_delete)
+            try:
+                self._sender_pool.get_sender(vm).delete(connect_db_delete)
+            except Exception as ex:
+                LOG.error('an error occurs: %s', ex)
 
 
 @six.add_metaclass(abc.ABCMeta)
