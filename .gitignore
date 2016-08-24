@@ -5,3 +5,5 @@ networking_bambuk.egg-info
 .settings
 .idea
 build
+.project
+.pydevproject
