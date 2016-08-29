@@ -12,6 +12,7 @@
 #    under the License.
 #
 
+import netaddr
 
 from neutron import context as n_context
 from neutron import manager
@@ -24,14 +25,15 @@ from oslo_serialization import jsonutils
 
 LOG = log.getLogger(__name__)
 
-
 class BambukPortInfo(object):
 
-    def __init__(self, port, other_ports, endpoints):
+    def __init__(self, port, other_ports, endpoints, router, router_ports):
         self._plugin_property = None
         self._port = port
         self._other_ports = other_ports
         self._endpoints = endpoints
+        self._router = router
+        self._router_ports = router_ports
         self._calculate_obj()
 
     @property
@@ -40,18 +42,45 @@ class BambukPortInfo(object):
             self._plugin_property = manager.NeutronManager.get_plugin()
         return self._plugin_property
 
+    """ Creates a lswitch object for a given port
+    """
+    def _get_lswitch(self, ctx, port, subnets):
+        network = self._plugin.get_network(ctx, port['network_id'])
+        _subnets = self._plugin.get_subnets(ctx,
+                         filters={'network_id':[port['network_id']]})
+        for subnet in _subnets:
+            subnets[subnet['id']] = subnet
+        return self._lswitch(network, _subnets), network
+
+    """ Creates a lswitch object for the updated port
+        This will also set the segmentation ID for our port
+    """
+    # TODO: As the segmentation ID code is commented out,
+    #       can we remove this and use the _get_lswitch instead?
+    def _get_port_lswitch(self, ctx, port, subnets):
+        lswitch, network = self._get_lswitch(ctx, port, subnets)
+        self.segmentation_id = network.get('provider:segmentation_id')
+        return lswitch
+
     def _calculate_obj(self):
         ctx = n_context.get_admin_context()
 
         # logical switch
-        network = self._plugin.get_network(ctx, self._port['network_id'])
-        subnets = self._plugin.get_subnets(
-            ctx, filters={'network_id':[self._port['network_id']]})
-        self.segmentation_id = network.get('provider:segmentation_id')
-        self.lswitch = self._lswitch(network, subnets)
+        subnets = {}
+        self.lswitches = {}
+        lswitch = self._get_port_lswitch(ctx, self._port, subnets)
+        self.lswitches[lswitch['id']] = lswitch
+        # Get lswitch for other networks as well...
+        for port in self._router_ports:
+            lswitch, network = self._get_lswitch(ctx, port, subnets)
+            if lswitch['id'] not in self.lswitches:
+                self.lswitches[lswitch['id']] = lswitch
 
         # port
         self.lport = self._lport(self._port)
+
+        # router
+        self.lrouter = self._lrouter(self._router, self._router_ports, subnets)
 
         # other ports
         self.other_lports = []
@@ -68,7 +97,7 @@ class BambukPortInfo(object):
 
         # list of chassis
         self.chassis = []
-        print(self._endpoints)
+        LOG.debug(self._endpoints)
         for entry in self._endpoints:
             for tunnel in entry['tunnels']:
                 self.chassis.append({
@@ -79,6 +108,18 @@ class BambukPortInfo(object):
                     'name': tunnel['host'],
                     'port': tunnel.get('udp_port'),
                 })
+
+    def port_db(self, c_db_in=None):
+        if c_db_in:
+            c_db = c_db_in
+        else:
+            c_db = []
+        c_db.append({
+            'table': 'lport',
+            'key': self.lport['id'],
+            'value': jsonutils.dumps(self.lport)
+        })
+        return c_db
 
     def chassis_db(self, c_db_in=None):
         if c_db_in:
@@ -94,16 +135,17 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def port_db(self, c_db_in=None):
+    def lswitch_db(self, c_db_in=None):
         if c_db_in:
             c_db = c_db_in
         else:
             c_db = []
-        c_db.append({
-            'table': 'lport',
-            'key': self.lport['id'],
-            'value': jsonutils.dumps(self.lport)
-        })
+        for lswitch_id in self.lswitches:
+            c_db.append({
+                'table': 'lswitch',
+                'key': lswitch_id,
+                'value': jsonutils.dumps(self.lswitches[lswitch_id])
+            })
         return c_db
 
     def to_db(self):
@@ -126,14 +168,17 @@ class BambukPortInfo(object):
             })
 
         # logical switch
-        port_connect_db.append({
-            'table': 'lswitch',
-            'key': self.lswitch['id'],
-            'value': jsonutils.dumps(self.lswitch)
-        })
+        self.lswitch_db(port_connect_db)
 
         # list of chassis
         self.chassis_db(port_connect_db)
+
+        # logical router
+        port_connect_db.append({
+            'table': 'lrouter',
+            'key': self.lrouter['id'],
+            'value': jsonutils.dumps(self.lrouter)
+        })
 
         return port_connect_db
 
@@ -197,6 +242,37 @@ class BambukPortInfo(object):
         lswitch['mtu'] = network.get('mtu')
         lswitch['subnets'] = []
         LOG.debug(subnets)
-        for subnet in subnets:
-            lswitch['subnets'].append(self._subnet(subnet)) 
+        lswitch['subnets'] = [self._subnet(subnet) for subnet in subnets] 
         return lswitch
+
+    def _get_subnet(self, subnets, subnet_id):
+        if subnet_id in subnets:
+            return subnets[subnet_id]
+        return None
+
+    def _lrouter_port(self, router_port, subnets):
+        port = self._lport(router_port)
+        port['mac'] = port['macs'][0]
+        f_ips = router_port.get('fixed_ips', [] )
+        subnet_id = f_ips[0]['subnet_id']
+        subnet = self._get_subnet(subnets, subnet_id)
+        if subnet:
+            cidr = netaddr.IPNetwork(subnet['cidr'])
+            network = "%s/%s" % (router_port['fixed_ips'][0]['ip_address'],
+                                 str(cidr.prefixlen))
+            port['network'] = network
+        port['topic'] = router_port['tenant_id']
+        del port['macs']
+        del port['ips']
+        return port
+
+    def _lrouter(self, router, router_ports, subnets):
+        if not router:
+            return None
+        lrouter = {}
+        lrouter['id'] = router['id']
+        lrouter['topic'] = router['tenant_id']
+        lrouter['name'] = router['name']
+        lrouter['ports'] = \
+            [self._lrouter_port(port, subnets) for port in router_ports]
+        return lrouter

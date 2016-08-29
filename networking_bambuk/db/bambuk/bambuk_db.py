@@ -28,6 +28,7 @@ ACTION_DELETE = 'delete'
 OBJ_TYPE_PORT = 'port'
 OBJ_TYPE_SINGLE_PORT = 'single_port'
 OBJ_TYPE_SECURITY_GROUP = 'security_group'
+OBJ_TYPE_ROUTER = 'router'
 
 
 class BambukUpdateLog(model_base.BASEV2,

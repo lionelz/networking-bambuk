@@ -16,6 +16,11 @@ from oslo_log import log
   
 from oslo_serialization import jsonutils
 
+# Defined in neutron_lib.constants
+ROTUER_INTERFACE_OWNERS = (
+    "network:router_gateway",     # External net port
+    "network:router_interface_distributed", # Internal net port distributed
+)
 
 LOG = log.getLogger(__name__)
 
@@ -56,6 +61,7 @@ class Action(object):
             None,
             '_port_result_filter_hook')
         self._plugin_property = None
+        self._l3_plugin_property = None
         self._notifier = rpc.AgentNotifierApi(topics.AGENT)
         self._type_manager = managers.TypeManager()
 
@@ -68,6 +74,14 @@ class Action(object):
             pp._port_result_filter_hook = _port_result_filter_hook
             self._plugin_property = pp
         return self._plugin_property
+
+    @property
+    def _l3_plugin(self):
+        if self._l3_plugin_property is None:
+            self._l3_plugin_property = \
+                manager.NeutronManager.get_service_plugins().get(
+                        p_const.L3_ROUTER_NAT)
+        return self._l3_plugin_property
 
     def _update(self, table, key, value, vms):
         self._bambuk_client.update({
@@ -126,17 +140,17 @@ class PortUpdateAction(Action):
         host_id, provider_mgnt_ip, provider_data_ip = get_port_binding(port)
         if not provider_mgnt_ip:
             return
- 
+
         server_conf = {
             'device_id': host_id,
             'local_ip': provider_data_ip
         }
- 
+
         # get agent state
         agent_state =  self._bambuk_client.state(server_conf, provider_mgnt_ip)
         if not agent_state:
             return
- 
+
         # TODO: add tunnel_types to the port data profile
         # to support other than vxlan
         if config.get_l2_population():
@@ -154,17 +168,20 @@ class PortUpdateAction(Action):
             LOG.debug(agents)
             if not agents or len(agents) == 0:
                 return
-     
-        #the other port of the network
-        other_ports = self._plugin.get_ports(
-            ctx,
-            filters={'network_id': [port['network_id']]}
-        )
+
+        # TODO: At the moment we assume a network is connected
+        #       to a single router at most.
+
+        # Read all the reachable networks and the router
+        router, router_ports, other_ports = \
+                self._get_router_and_ports_from_net(ctx, port['network_id'])
+
         LOG.debug(port['network_id'])
         LOG.debug(other_ports)
         endpoints = []
         for op in other_ports:
             if port['id'] == op['id']:
+                # This is our port
                 port_db = op
             else:
                 op_h, op_mgnt_ip, op_data_ip = get_port_binding(op)
@@ -187,6 +204,7 @@ class PortUpdateAction(Action):
                             'tunnels': [tunnel],
                             'tunnel_type': tunnel_type
                         })
+        other_ports.remove(port_db)
         LOG.debug("endpoints %s" % endpoints)
 
         for tunnel_type in agent_state['configurations']['tunnel_types']:
@@ -208,16 +226,69 @@ class PortUpdateAction(Action):
                     LOG.info('entry %s' % entry)
                     endpoints.append(entry)
         LOG.debug("endpoints %s" % endpoints)
-        port_info = port_infos.BambukPortInfo(port_db, other_ports, endpoints)
-     
+        port_info = port_infos.BambukPortInfo(port_db, other_ports,
+                                              endpoints,
+                                              router, router_ports)
+
         self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
-     
+
         # update all other ports for the maybe new endpoint
         vms = self._get_vms(other_ports, [port['id']])
         update_connect_db = port_info.chassis_db()
         port_info.port_db(update_connect_db)
         self._bambuk_client.update(update_connect_db, vms)
 
+    def _get_router_and_ports_from_net(self, ctx, network_id):
+        # Get all routable networks
+        router = None
+        # Get the routers connected to this network
+        routers = self._get_routers_for_net(ctx, network_id)
+        networks = []
+        router_ports = []
+        if routers:
+            if len(routers) > 0:
+                # We support only one router per network at the moment
+                router = routers[0]
+                networks, router_ports = \
+                    self._get_ports_from_router(ctx, router)
+
+        networks.append(network_id)
+        # Remove duplicates
+        networks = list(set(networks))
+
+        # Retrieve all the networks ports
+        ports = []
+        for network in networks:
+            ports += self._get_network_ports(ctx, network)
+
+        return router, router_ports, ports
+
+    def _get_routers_for_net(self, ctx, network_id):
+        routers = []
+        if self._l3_plugin is None:
+            return routers
+        network = self._plugin.get_network(ctx, network_id)
+        if not network:
+            return routers
+        net_ports = self._get_network_ports(ctx, network_id)
+        for port in net_ports:
+            if port['device_owner'] in ROTUER_INTERFACE_OWNERS:
+                routers.append(self._l3_plugin.get_router(ctx, port['device_id']))
+        return routers
+
+    def _get_ports_from_router(self, ctx, router):
+        networks = []
+        router_ports = []
+        if router['distributed']:
+            router_ports = self._plugin.get_ports(
+                ctx, filters={'device_id': [router['id']]})
+            for port in router_ports:
+                networks.append(port['network_id'])
+        return networks, router_ports
+
+    def _get_network_ports(self, ctx, network_id):
+        return self._plugin.get_ports(
+                    ctx, filters={'network_id': [network_id]})
 
 class SecurityGroupUpdateAction(Action):
 
@@ -245,8 +316,13 @@ class SecurityGroupUpdateAction(Action):
                 'value': jsonutils.dumps(sg)
             }, vms)
 
+class RouterUpdateAction(PortUpdateAction):
+    def process(self):
+        #TODO: Implement
+        return PortUpdateAction.process(self)
 
 ACTIONS_CLASS = {
     bambuk_db.OBJ_TYPE_PORT: PortUpdateAction,
     bambuk_db.OBJ_TYPE_SECURITY_GROUP: SecurityGroupUpdateAction,
+    bambuk_db.OBJ_TYPE_ROUTER: RouterUpdateAction,
 }

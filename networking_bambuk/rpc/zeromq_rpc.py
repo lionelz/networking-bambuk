@@ -33,7 +33,6 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
         context = zmq.Context()
         self._socket = context.socket(zmq.REP)
         self._socket.bind("tcp://%s:%d" % (self._ip, self._port))
-        self._socket.CONNECT_TIMEOUT = 3000
         self._socket.SNDTIMEO = 3000
         self._socket.RCVTIMEO = 5000
         while self._running:
