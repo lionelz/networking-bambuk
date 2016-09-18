@@ -7,3 +7,4 @@ networking_bambuk.egg-info
 build
 .project
 .pydevproject
+.tox
