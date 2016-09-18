@@ -12,9 +12,8 @@
 #    under the License.
 #
 
-from oslo_log import log
+from oslo_log import log as o_log
 
-from neutron.common import utils as n_utils
 from neutron import manager
 from neutron.plugins.common import constants as n_constants
 from neutron.services.l3_router import l3_router_plugin
@@ -22,15 +21,18 @@ from neutron.services.l3_router import l3_router_plugin
 from networking_bambuk._i18n import _LE, _LI
 from networking_bambuk.common import constants
 
+from networking_bambuk.db.bambuk import bambuk_db
+from networking_bambuk.db.bambuk import create_update_log
 
-LOG = log.getLogger(__name__)
+
+LOG = o_log.getLogger(__name__)
 
 
 class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
     """Implementation of the Bambuk L3 Router Service Plugin.
 
     This class implements a L3 service plugin that provides
-    router and floatingip resources and manages associated
+    router and floating IP resources and manages associated
     request/response.
     """
     supported_extension_aliases = \
@@ -54,62 +56,60 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
         """returns string description of the plugin."""
         return ("L3 Router Service Plugin for L3 forwarding (hybrid-Cloud)")
 
-    def create_router(self, context, router):
-        router = super(BambukL3RouterPlugin, self).create_router(
-            context, router)
-        # TODO: implement it
-        return router
-
     def update_router(self, context, router_id, router):
         original_router = self.get_router(context, router_id)
-        result = super(BambukL3RouterPlugin, self).update_router(
-            context, router_id, router)
+        with context.session.begin(subtransactions=True):
+            result = super(BambukL3RouterPlugin, self).update_router(
+                context, router_id, router)
 
-        # TODO: implement it
-        update = {}
-        added = []
-        removed = []
-        if 'admin_state_up' in router['router']:
-            enabled = router['router']['admin_state_up']
-            if enabled != original_router['admin_state_up']:
-                update['enabled'] = enabled
-
-        """ Update static routes """
-        if 'routes' in router['router']:
-            routes = router['router']['routes']
-            added, removed = n_utils.diff_list_of_dict(
-                original_router['routes'], routes)
-
-        if update or added or removed:
-            try:
-                pass
-            except Exception as ex:
-                LOG.exception(_LE('Unable to update router for %s'), id)
-                # roll-back
-                super(BambukL3RouterPlugin, self).update_router(
-                    context,
-                    id,
-                    original_router)
-                raise ex
-
+            update = {}
+            if 'admin_state_up' in router['router']:
+                enabled = router['router']['admin_state_up']
+                if enabled != original_router['admin_state_up']:
+                    update['enabled'] = enabled
+            if update:
+                try:
+                    create_update_log.create_bambuk_update_log(
+                        context,
+                        result,
+                        bambuk_db.OBJ_TYPE_ROUTER,
+                        bambuk_db.ACTION_UPDATE
+                    )
+                except Exception as ex:
+                    LOG.exception(_LE('Unable to update router for %s'), id)
+                    raise ex
+        create_update_log.awake()
         return result
 
-    def delete_router(self, context, router_id):
-        ret_val = super(BambukL3RouterPlugin, self).delete_router(
-            context, router_id)
-        # TODO: implement it
-        return ret_val
-
     def add_router_interface(self, context, router_id, interface_info):
-        router_interface_info = \
-            super(BambukL3RouterPlugin, self).add_router_interface(
-                context, router_id, interface_info)
-        # TODO: implement it
+        with context.session.begin(subtransactions=True):
+            router_interface_info = \
+                super(BambukL3RouterPlugin, self).add_router_interface(
+                    context, router_id, interface_info)
+
+            create_update_log.create_bambuk_update_log(
+                context,
+                router_interface_info,
+                bambuk_db.OBJ_TYPE_ROUTER_IFACE,
+                bambuk_db.ACTION_ATTACH,
+            )
+        create_update_log.awake()
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
-        router_interface_info = \
-            super(BambukL3RouterPlugin, self).remove_router_interface(
-                context, router_id, interface_info)
-        # TODO: implement it
+        with context.session.begin(subtransactions=True):
+            router_interface_info = (
+                super(BambukL3RouterPlugin, self).remove_router_interface(
+                    context, router_id, interface_info))
+
+            network_id = router_interface_info['network_id']
+            LOG.debug("Removing router interface  %s", router_interface_info)
+            create_update_log.create_bambuk_update_log(
+                context,
+                router_interface_info,
+                bambuk_db.OBJ_TYPE_ROUTER_IFACE,
+                bambuk_db.ACTION_DETACH,
+                network_id
+            )
+        create_update_log.awake()
         return router_interface_info

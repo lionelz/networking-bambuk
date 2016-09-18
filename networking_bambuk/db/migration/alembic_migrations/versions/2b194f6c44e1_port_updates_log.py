@@ -41,4 +41,6 @@ def upgrade():
         sa.Column('nb_retry', sa.SmallInteger, default=0, nullable=False),
         sa.Column('last_retry', sa.DateTime, nullable=True),
         sa.Column('next_retry', sa.DateTime, nullable=True),
+        sa.Column('extra_id', sa.String(length=36), nullable=True),
+        sa.Column('extra_data', sa.String(length=255), nullable=True),
     )

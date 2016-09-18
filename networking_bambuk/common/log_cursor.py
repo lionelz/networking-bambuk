@@ -39,11 +39,10 @@ from neutron import context as n_context
 from networking_bambuk.common import update_actions
 from networking_bambuk.db.bambuk import bambuk_db
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
+from oslo_log import log as o_log
 
-from oslo_log import log
 
-
-LOG = log.getLogger(__name__)
+LOG = o_log.getLogger(__name__)
 
 
 class LogCursor():
@@ -68,7 +67,11 @@ class LogCursor():
                     LOG.debug('No more bambuk update log, %d processed' % n)
                     return
                 n = n + 1
-                ac = update_actions.ACTIONS_CLASS[b_log.obj_type](
-                    b_log, self._bambuk_client)
-                ac.process()
-                LOG.debug('bambuk update log: %s' % b_log)
+                _action_touple = (b_log.obj_type, b_log.action_type)
+                _cls_action = update_actions.ACTIONS_CLASS.get(_action_touple)
+                if _cls_action:
+                    _handler = _cls_action(b_log, self._bambuk_client)
+                    _handler.process()
+                    LOG.debug('Bambuk processed log: %s' % b_log)
+                    return
+                LOG.debug('Bambuk has no handler for log: %s' % b_log)

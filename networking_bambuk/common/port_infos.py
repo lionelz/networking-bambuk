@@ -19,11 +19,11 @@ from neutron import manager
 from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import portsecurity as psec
 
-from oslo_log import log
+from oslo_log import log as o_log
 
 from oslo_serialization import jsonutils
 
-LOG = log.getLogger(__name__)
+LOG = o_log.getLogger(__name__)
 
 
 class BambukPortInfo(object):
@@ -70,16 +70,20 @@ class BambukPortInfo(object):
         # logical switch
         subnets = {}
         self.lswitches = {}
-        lswitch = self._get_port_lswitch(ctx, self._port, subnets)
-        self.lswitches[lswitch['id']] = lswitch
+        if self._port:
+            lswitch = self._get_port_lswitch(ctx, self._port, subnets)
+            self.lswitches[lswitch['id']] = lswitch
         # Get lswitch for other networks as well...
         for port in self._router_ports:
-            lswitch, network = self._get_lswitch(ctx, port, subnets)
+            lswitch, _ = self._get_lswitch(ctx, port, subnets)
             if lswitch['id'] not in self.lswitches:
                 self.lswitches[lswitch['id']] = lswitch
 
         # port
-        self.lport = self._lport(self._port)
+        if self._port:
+            self.lport = self._lport(self._port)
+        else:
+            self.lport = None
 
         # router
         self.lrouter = self._lrouter(self._router, self._router_ports, subnets)
@@ -91,7 +95,7 @@ class BambukPortInfo(object):
 
         # security groups
         self.secgroup = []
-        if self.lport['security_groups']:
+        if self.lport and self.lport['security_groups']:
             sgs = self._plugin.get_security_groups(
                 ctx, {'id': self.lport['security_groups']})
             for sg in sgs:
@@ -116,11 +120,12 @@ class BambukPortInfo(object):
             c_db = c_db_in
         else:
             c_db = []
-        c_db.append({
-            'table': 'lport',
-            'key': self.lport['id'],
-            'value': jsonutils.dumps(self.lport)
-        })
+        if self.lport:
+            c_db.append({
+                'table': 'lport',
+                'key': self.lport['id'],
+                'value': jsonutils.dumps(self.lport)
+            })
         return c_db
 
     def chassis_db(self, c_db_in=None):
@@ -249,9 +254,11 @@ class BambukPortInfo(object):
         return lswitch
 
     def _get_subnet(self, subnets, subnet_id):
-        if subnet_id in subnets:
-            return subnets[subnet_id]
-        return None
+        if subnet_id not in subnets:
+            # Try to read the network if it is not in the cache
+            ctx = n_context.get_admin_context()
+            subnets[subnet_id] = self._plugin.get_subnet(ctx, subnet_id)
+        return subnets[subnet_id]
 
     def _lrouter_port(self, router_port, subnets):
         port = self._lport(router_port)
