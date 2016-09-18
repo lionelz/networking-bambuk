@@ -1,8 +1,22 @@
-from neutron import context as n_context
-from neutron import manager
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 from neutron.api.v2 import attributes
 from neutron.common import topics
-from neutron.db import db_base_plugin_v2, securitygroups_db, models_v2
+from neutron import context as n_context
+from neutron.db import db_base_plugin_v2
+from neutron.db import models_v2
+from neutron.db import securitygroups_db
+from neutron import manager
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
@@ -47,6 +61,7 @@ def _port_result_filter_hook(query, filters):
 
 
 def get_port_binding(port):
+    """Get the port binding data for a given port."""
     binding_profile = port['binding:profile']
     if 'provider_mgnt_ip' not in binding_profile:
         return None, None, None
@@ -62,8 +77,16 @@ def get_port_binding(port):
 
 
 class Action(object):
+    """Base class for Action handlers."""
 
     def __init__(self, log, bambuk_client):
+        """Constructor.
+
+        :param log: the bambuk log
+        :type log: BambukUpdateLog
+        :param bambuk_client: bambuk client used to dispatch messages
+        :type bambuk_client: BambukAgentClient
+        """
         self._log = log
         self._bambuk_client = bambuk_client
         # Register dict extend port attributes
@@ -114,8 +137,9 @@ class Action(object):
     @staticmethod
     def _get_vms(ports, exclude_ids=None):
         """
-        gets all the vms holding the ports, it is possible
-        to specify optional port_ids to exclude
+        Get all the vms holding the ports.
+
+        it is possible to specify optional port_ids to exclude
         :param ports: the ports to look for
         :param exclude_ids: port_ids to exclude
         :type ports: list of dict
@@ -133,13 +157,16 @@ class Action(object):
         return vms
 
     def process(self):
+        """Actual worker method."""
         pass
 
     @staticmethod
     def _get_endpoints(ports, port=None):
         """
-        gets all the chassis holding the ports, it is possible
-        to mark optional port as a special one
+        Get all the chassis holding the ports.
+
+        it is possible to mark optional port as a special one
+
         :param ports: the ports to look for
         :param port: "special" port
         :type ports: list of dict
@@ -162,7 +189,7 @@ class Action(object):
                         'host': op_h,
                         'udp_port': p_const.VXLAN_UDP_PORT,
                     }
-                    # TODO: support other types from port data profile
+                    # TODO(lionelz): support other types from port data profile
                     tunnel_type = 'vxlan'
                     tunnels = None
                     for endpoint in endpoints:  # type: dict
@@ -178,9 +205,10 @@ class Action(object):
         return endpoints, port_db
 
     def _get_router_and_ports_from_net(self, ctx, network_id):
-        """
+        """Get rotuer attached to a network and the reachable ports.
+
         Get the router for the specified network, along with it,
-        get the router ports and the reachable ports from the router
+        get the router ports and the reachable ports from the router.
         :param ctx: Context
         :param network_id: ID of the network to work on
         :type ctx: dict
@@ -215,8 +243,8 @@ class Action(object):
         return router, router_ports, ports
 
     def _get_routers_for_net(self, ctx, network_id):
-        """
-        Get all the routers connected to the specified network
+        """Get all the routers connected to the specified network.
+
         :param ctx: Context
         :param network_id: ID of the network to work on
         :type ctx: dict
@@ -238,8 +266,8 @@ class Action(object):
         return routers
 
     def _get_ports_from_router(self, ctx, router):
-        """
-        Get all the ports associated with a specific distributed router
+        """Get all the ports associated with a specific distributed router.
+
         :param ctx: context
         :param router: router object to query
         :type router: dict
@@ -263,7 +291,14 @@ TUNNEL_TYPES = {'vxlan': 'bambuk_vxlan'}
 
 
 class PortUpdateAction(Action):
+    """This is the handler for the Port-update action.
+
+    It informs all the networks that the disconnected
+    subnet is not reachable any more, and vice-versa.
+    """
+
     def process(self):
+        """Actual worker for informing the relevant network nodes."""
         LOG.debug('PortUpdateAction %s' % self._log)
         ctx = n_context.get_admin_context()
 
@@ -271,8 +306,8 @@ class PortUpdateAction(Action):
             # retrieve the port
             port = self._plugin.get_port(ctx, self._log['obj_id'])
         except Exception as e:
-            LOG.exception(_LE('Unable to update port for %s: %s'),
-                          self._log['obj_id'], e)
+            LOG.exception(_LE('Unable to update port for %(log)s: %(ex)s') %
+                {'log': self._log['obj_id'], 'ex': e})
             return
 
         host_id, provider_mgnt_ip, provider_data_ip = get_port_binding(port)
@@ -289,8 +324,8 @@ class PortUpdateAction(Action):
         if not agent_state:
             return
 
-        # TODO: add tunnel_types to the port data profile
-        #       to support other than vxlan
+        # TODO(lionelz): add tunnel_types to the port data profile
+        #                to support other than vxlan
         if config.get_l2_population():
             # create or update the agent
             agent = self._plugin.create_or_update_agent(
@@ -307,8 +342,8 @@ class PortUpdateAction(Action):
             if not agents or len(agents) == 0:
                 return
 
-        # TODO: At the moment we assume a network is connected
-        #       to a single router at most.
+        # TODO(snapiri): At the moment we assume a network is connected
+        #                to a single router at most.
 
         # Read all the reachable networks and the router
         router, router_ports, other_ports = (
@@ -408,6 +443,7 @@ class PortUpdateAction(Action):
 
 
 class SecurityGroupUpdateAction(Action):
+    """Handles SecurityGroup update logs."""
 
     def _get_ports_by_sg_id(self, ctx, sg_id):
         with ctx.session.begin(subtransactions=True):
@@ -420,6 +456,7 @@ class SecurityGroupUpdateAction(Action):
             return sg, ports
 
     def process(self):
+        """Actual worker for informing the relevant network nodes."""
         LOG.debug('SecurityGroupUpdateAction %s' % self._log)
         # get all the ports connected to the sg
         ctx = n_context.get_admin_context()
@@ -435,8 +472,15 @@ class SecurityGroupUpdateAction(Action):
 
 
 class RouterUpdateAction(Action):
+    """This is the handler for the Router-Update log.
+
+    We expect to get called in case the router is enabled/disabled, and
+    in each of the cases we inform the nodes on the networks that they
+    are all reachable or not from each other.
+    """
 
     def process(self):
+        """Actual worker for informing the relevant network nodes."""
         LOG.debug('RouterUpdateAction %s' % self._log)
         ctx = n_context.get_admin_context()
         router = self._l3_plugin.get_router(ctx, self._log['obj_id'])
@@ -472,8 +516,14 @@ class RouterUpdateAction(Action):
 
 
 class RouterIfaceAttachAction(Action):
+    """This is the handler for the Router-Interface-Attach log.
+
+    It informs all the networks that the newly connected network
+    subnet is now reachable from the other networks, and vice-versa.
+    """
 
     def process(self):
+        """Actual worker for informing the relevant network nodes."""
         LOG.debug('RouterIfaceAttachAction %s' % self._log)
         ctx = n_context.get_admin_context()
 
@@ -509,8 +559,14 @@ class RouterIfaceAttachAction(Action):
 
 
 class RouterIfaceDetachAction(Action):
+    """This is the handler for the Router-Interface-Detach log.
+
+    It informs all the networks that the disconnected
+    subnet is not reachable any more, and vice-versa.
+    """
 
     def process(self):
+        """Actual worker for informing the relevant network nodes."""
         LOG.debug('RouterIfaceDetachAction %s' % self._log)
         ctx = n_context.get_admin_context()
         try:

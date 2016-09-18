@@ -15,9 +15,9 @@
 import netaddr
 
 from neutron import context as n_context
-from neutron import manager
 from neutron.extensions import allowedaddresspairs as addr_pair
 from neutron.extensions import portsecurity as psec
+from neutron import manager
 
 from oslo_log import log as o_log
 
@@ -27,8 +27,10 @@ LOG = o_log.getLogger(__name__)
 
 
 class BambukPortInfo(object):
+    """Port info object, used to construct the messages to the clients."""
 
     def __init__(self, port, other_ports, endpoints, router, router_ports):
+        """Constructor."""
         self._plugin_property = None
         self._port = port
         self._other_ports = other_ports
@@ -43,9 +45,8 @@ class BambukPortInfo(object):
             self._plugin_property = manager.NeutronManager.get_plugin()
         return self._plugin_property
 
-    """ Creates a lswitch object for a given port
-    """
     def _get_lswitch(self, ctx, port, subnets):
+        """Create a lswitch object for a given port."""
         network = self._plugin.get_network(ctx, port['network_id'])
         _subnets = self._plugin.get_subnets(
             ctx,
@@ -54,12 +55,13 @@ class BambukPortInfo(object):
             subnets[subnet['id']] = subnet
         return self._lswitch(network, _subnets), network
 
-    """ Creates a lswitch object for the updated port
-        This will also set the segmentation ID for our port
-    """
-    # TODO: As the segmentation ID code is commented out,
-    #       can we remove this and use the _get_lswitch instead?
+    # TODO(lionelz): As the segmentation ID code is commented out,
+    #                can we remove this and use the _get_lswitch instead?
     def _get_port_lswitch(self, ctx, port, subnets):
+        """Create a lswitch object for the updated port.
+
+        This will also set the segmentation ID for our port
+        """
         lswitch, network = self._get_lswitch(ctx, port, subnets)
         self.segmentation_id = network.get('provider:segmentation_id')
         return lswitch
@@ -115,7 +117,7 @@ class BambukPortInfo(object):
                     'port': tunnel.get('udp_port'),
                 })
 
-    def port_db(self, c_db_in=None):
+    def _port_db(self, c_db_in=None):
         if c_db_in:
             c_db = c_db_in
         else:
@@ -128,7 +130,7 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def chassis_db(self, c_db_in=None):
+    def _chassis_db(self, c_db_in=None):
         if c_db_in:
             c_db = c_db_in
         else:
@@ -142,7 +144,7 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def lswitch_db(self, c_db_in=None):
+    def _lswitch_db(self, c_db_in=None):
         if c_db_in:
             c_db = c_db_in
         else:
@@ -156,7 +158,8 @@ class BambukPortInfo(object):
         return c_db
 
     def to_db(self):
-        port_connect_db = self.port_db()
+        """Convert the message to a DB structure."""
+        port_connect_db = self._port_db()
 
         # list of other ports
         for port in self.other_lports:
@@ -175,10 +178,10 @@ class BambukPortInfo(object):
             })
 
         # logical switch
-        self.lswitch_db(port_connect_db)
+        self._lswitch_db(port_connect_db)
 
         # list of chassis
-        self.chassis_db(port_connect_db)
+        self._chassis_db(port_connect_db)
 
         # logical router
         port_connect_db.append({

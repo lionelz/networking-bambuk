@@ -18,7 +18,8 @@ from neutron import manager
 from neutron.plugins.common import constants as n_constants
 from neutron.services.l3_router import l3_router_plugin
 
-from networking_bambuk._i18n import _LE, _LI
+from networking_bambuk._i18n import _LE
+from networking_bambuk._i18n import _LI
 from networking_bambuk.common import constants
 
 from networking_bambuk.db.bambuk import bambuk_db
@@ -35,10 +36,12 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
     router and floating IP resources and manages associated
     request/response.
     """
+
     supported_extension_aliases = \
         constants.ML2_SUPPORTED_API_EXTENSIONS_BAMBUK_L3
 
     def __init__(self):
+        """Constructor."""
         LOG.info(_LI("Starting BambukL3RouterPlugin"))
         super(BambukL3RouterPlugin, self).__init__()
         self._plugin_property = None
@@ -50,13 +53,18 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
         return self._plugin_property
 
     def get_plugin_type(self):
+        """Return the type of the plugin."""
         return n_constants.L3_ROUTER_NAT
 
     def get_plugin_description(self):
-        """returns string description of the plugin."""
+        """Return string description of the plugin."""
         return ("L3 Router Service Plugin for L3 forwarding (hybrid-Cloud)")
 
     def update_router(self, context, router_id, router):
+        """Handle changes to a router.
+        
+           Currently we are only interested on the enabled/disabled 
+        """
         original_router = self.get_router(context, router_id)
         with context.session.begin(subtransactions=True):
             result = super(BambukL3RouterPlugin, self).update_router(
@@ -82,6 +90,7 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
         return result
 
     def add_router_interface(self, context, router_id, interface_info):
+        """Handle the addition of an interface (subnet) from a router."""
         with context.session.begin(subtransactions=True):
             router_interface_info = \
                 super(BambukL3RouterPlugin, self).add_router_interface(
@@ -97,6 +106,7 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
+        """Handle the removal of an interface (subnet) from a router."""
         with context.session.begin(subtransactions=True):
             router_interface_info = (
                 super(BambukL3RouterPlugin, self).remove_router_interface(
