@@ -13,13 +13,13 @@ from networking_bambuk.common import port_infos
 from networking_bambuk.db.bambuk import bambuk_db
 
 from oslo_log import log
-  
+
 from oslo_serialization import jsonutils
 
 # Defined in neutron_lib.constants
 ROTUER_INTERFACE_OWNERS = (
-    "network:router_gateway",     # External net port
-    "network:router_interface_distributed", # Internal net port distributed
+    "network:router_gateway",                # External net port
+    "network:router_interface_distributed",  # Internal net port distributed
 )
 
 LOG = log.getLogger(__name__)
@@ -31,10 +31,10 @@ def _extend_port_dict_std_attr_id(res, port):
 
 
 def _port_model_hook(context, original_model, query):
+    port_id_col = securitygroups_db.SecurityGroupPortBinding.port_id
     query = query.outerjoin(
         securitygroups_db.SecurityGroupPortBinding,
-        (original_model.id ==
-        securitygroups_db.SecurityGroupPortBinding.port_id))
+        original_model.id == port_id_col)
     return query
 
 
@@ -100,7 +100,7 @@ class Action(object):
         vms = set()
         for port in ports:
             if exclude_ids and port['id'] in exclude_ids:
-                continue 
+                continue
             binding_profile = port['binding:profile']
             if 'provider_mgnt_ip' in binding_profile:
                 vms.add(binding_profile['provider_mgnt_ip'])
@@ -147,7 +147,7 @@ class PortUpdateAction(Action):
         }
 
         # get agent state
-        agent_state =  self._bambuk_client.state(server_conf, provider_mgnt_ip)
+        agent_state = self._bambuk_client.state(server_conf, provider_mgnt_ip)
         if not agent_state:
             return
 
@@ -173,8 +173,8 @@ class PortUpdateAction(Action):
         #       to a single router at most.
 
         # Read all the reachable networks and the router
-        router, router_ports, other_ports = \
-                self._get_router_and_ports_from_net(ctx, port['network_id'])
+        router, router_ports, other_ports = (
+            self._get_router_and_ports_from_net(ctx, port['network_id']))
 
         LOG.debug(port['network_id'])
         LOG.debug(other_ports)
@@ -273,7 +273,8 @@ class PortUpdateAction(Action):
         net_ports = self._get_network_ports(ctx, network_id)
         for port in net_ports:
             if port['device_owner'] in ROTUER_INTERFACE_OWNERS:
-                routers.append(self._l3_plugin.get_router(ctx, port['device_id']))
+                routers.append(
+                    self._l3_plugin.get_router(ctx, port['device_id']))
         return routers
 
     def _get_ports_from_router(self, ctx, router):
@@ -290,13 +291,14 @@ class PortUpdateAction(Action):
         return self._plugin.get_ports(
                     ctx, filters={'network_id': [network_id]})
 
+
 class SecurityGroupUpdateAction(Action):
 
     def _get_ports_by_sg_id(self, ctx, sg_id):
         with ctx.session.begin(subtransactions=True):
             # retrieve the security group
             sg = self._plugin.get_security_group(ctx, sg_id)
-             
+
             # retrieve the ports
             ports = self._plugin.get_ports(
                 ctx, filters={'security_group_id': sg_id})
@@ -306,9 +308,9 @@ class SecurityGroupUpdateAction(Action):
         LOG.debug('SecurityGroupUpdateAction %s' % self._log)
         # get all the ports connected to the sg
         ctx = n_context.get_admin_context()
-        sg, ports  = self._get_ports_by_sg_id(ctx, self._log['obj_id'])
+        sg, ports = self._get_ports_by_sg_id(ctx, self._log['obj_id'])
         vms = self._get_vms(ports)
-             
+
         self._bambuk_client.update(
             {
                 'table': 'secgroup',
@@ -316,10 +318,12 @@ class SecurityGroupUpdateAction(Action):
                 'value': jsonutils.dumps(sg)
             }, vms)
 
+
 class RouterUpdateAction(PortUpdateAction):
     def process(self):
-        #TODO: Implement
+        # TODO: Implement it
         return PortUpdateAction.process(self)
+
 
 ACTIONS_CLASS = {
     bambuk_db.OBJ_TYPE_PORT: PortUpdateAction,

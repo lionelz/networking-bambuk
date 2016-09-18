@@ -16,7 +16,7 @@
 import datetime
 
 from networking_bambuk.common import log_cursor
-from networking_bambuk.db.bambuk import bambuk_db 
+from networking_bambuk.db.bambuk import bambuk_db
 
 from oslo_log import log
 
@@ -24,8 +24,6 @@ from oslo_utils import uuidutils
 
 
 LOG = log.getLogger(__name__)
-
-
 LOG_CURSOR = log_cursor.LogCursor(5)
 
 
@@ -43,6 +41,7 @@ def create_bambuk_update_log(context,
         nb_retry=0,
     )
     context.session.add(row)
+
 
 def awake():
     LOG_CURSOR.awake()

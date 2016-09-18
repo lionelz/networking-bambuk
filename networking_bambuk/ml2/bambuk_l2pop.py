@@ -9,7 +9,7 @@ LOG = log.getLogger(__name__)
 
 
 class BambukL2Pop(l2population_rpc.L2populationRpcCallBackTunnelMixin):
-    
+
     def __init__(self):
         self.connection = agent_rpc.create_consumers(
             [self],

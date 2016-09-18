@@ -18,7 +18,7 @@ import json
 import six
 import eventlet
 
-from networking_bambuk.common import  config
+from networking_bambuk.common import config
 from oslo_log import log
 from oslo_utils import importutils
 
@@ -28,7 +28,7 @@ LOG = log.getLogger(__name__)
 
 @six.add_metaclass(abc.ABCMeta)
 class BambukSenderPool(object):
-    
+
     @abc.abstractmethod
     def get_sender(self, vm):
         pass
@@ -69,7 +69,7 @@ class BambukAgentClient(object):
 
 @six.add_metaclass(abc.ABCMeta)
 class BambukRpc(object):
-    
+
     @abc.abstractmethod
     def state(self, server_conf):
         pass
@@ -110,7 +110,7 @@ class BambukRpcReceiver(BambukRpc):
     def receive(self):
         pass
 
-    def call_agent(self, message_json):        
+    def call_agent(self, message_json):
         LOG.debug("Received message: %s" % message_json)
         # call bambuk_agent
         message = json.loads(message_json)
@@ -144,8 +144,6 @@ class BambukRpcReceiver(BambukRpc):
 
     def close(self):
         self._running = False
-
-
 
 
 @six.add_metaclass(abc.ABCMeta)

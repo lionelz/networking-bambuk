@@ -23,7 +23,7 @@ LOG = log.getLogger(__name__)
 
 
 class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
-    
+
     def __init__(self, bambuk_agent):
         self._port = config.get_listener_port()
         self._ip = config.get_listener_ip()
@@ -75,4 +75,3 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
     def send(self, message):
         self._socket.send(message, zmq.NOBLOCK)
         return self._socket.recv()
-        

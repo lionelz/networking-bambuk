@@ -38,7 +38,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
 
     def initialize(self):
         LOG.info(_LI("Starting BambukMechanismDriver"))
-                            
+
         self.supported_vnic_types = [portbindings.VNIC_NORMAL]
         self.vif_type = portbindings.VIF_TYPE_OVS,
         self.vif_details = {

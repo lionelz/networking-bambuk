@@ -39,7 +39,7 @@ from neutron import context as n_context
 from networking_bambuk.common import update_actions
 from networking_bambuk.db.bambuk import bambuk_db
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
-  
+
 from oslo_log import log
 
 

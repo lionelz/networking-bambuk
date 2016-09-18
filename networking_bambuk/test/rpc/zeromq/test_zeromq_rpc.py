@@ -19,7 +19,7 @@ from networking_bambuk.rpc import bambuk_rpc
 
 
 class FakeBambukAgent(bambuk_rpc.BambukRpc):
-    
+
     def __init__(self):
         pass
 
@@ -82,4 +82,3 @@ class TestZeroMqRpc(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

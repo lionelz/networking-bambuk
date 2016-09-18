@@ -19,6 +19,7 @@ from networking_bambuk.agent.df import df_tiny_db
 from tinydb import TinyDB
 from tinydb.storages import MemoryStorage
 
+
 class TinyDbDriver(unittest.TestCase):
 
     @classmethod
@@ -33,10 +34,10 @@ class TinyDbDriver(unittest.TestCase):
     def test_table(self):
         TinyDbDriver.tiny_db_driver.create_table('lport')
         self.assertSetEqual({'lport', '_default'},
-                             TinyDbDriver.tiny_db_driver._db.tables())
+                            TinyDbDriver.tiny_db_driver._db.tables())
         TinyDbDriver.tiny_db_driver.delete_table('lport')
         self.assertSetEqual({'_default'},
-                             TinyDbDriver.tiny_db_driver._db.tables())
+                            TinyDbDriver.tiny_db_driver._db.tables())
 
     def test_key(self):
         value = {'id': 'xxx'}

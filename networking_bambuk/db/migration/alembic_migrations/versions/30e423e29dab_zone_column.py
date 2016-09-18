@@ -11,7 +11,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-
 """empty message
 
 Revision ID: 30e423e29dab
@@ -19,13 +18,13 @@ Revises: 2b194f6c44e1
 Create Date: 2016-08-07 14:43:53.088971
 
 """
+from alembic import op
+import sqlalchemy as sa
+
 
 # revision identifiers, used by Alembic.
 revision = '30e423e29dab'
 down_revision = '2b194f6c44e1'
-
-from alembic import op
-import sqlalchemy as sa
 
 
 def upgrade():

@@ -25,6 +25,7 @@ from oslo_serialization import jsonutils
 
 LOG = log.getLogger(__name__)
 
+
 class BambukPortInfo(object):
 
     def __init__(self, port, other_ports, endpoints, router, router_ports):
@@ -46,8 +47,9 @@ class BambukPortInfo(object):
     """
     def _get_lswitch(self, ctx, port, subnets):
         network = self._plugin.get_network(ctx, port['network_id'])
-        _subnets = self._plugin.get_subnets(ctx,
-                         filters={'network_id':[port['network_id']]})
+        _subnets = self._plugin.get_subnets(
+            ctx,
+            filters={'network_id': [port['network_id']]})
         for subnet in _subnets:
             subnets[subnet['id']] = subnet
         return self._lswitch(network, _subnets), network
@@ -89,7 +91,7 @@ class BambukPortInfo(object):
 
         # security groups
         self.secgroup = []
-        if self.lport['security_groups']: 
+        if self.lport['security_groups']:
             sgs = self._plugin.get_security_groups(
                 ctx, {'id': self.lport['security_groups']})
             for sg in sgs:
@@ -192,7 +194,7 @@ class BambukPortInfo(object):
         lport['id'] = port['id']
         lport['topic'] = None
         lport['lswitch'] = port['network_id']
-        lport['macs'] =[port['mac_address']]
+        lport['macs'] = [port['mac_address']]
         lport['ips'] = ips
         lport['name'] = port.get('name', 'no_port_name')
         lport['enabled'] = port.get('admin_state_up', None)
@@ -206,7 +208,8 @@ class BambukPortInfo(object):
         lport['device_id'] = port.get('device_id', None)
         lport['security_groups'] = port.get('security_groups', None)
         lport['port_security_enabled'] = port.get(psec.PORTSECURITY, False)
-        lport['allowed_address_pairs'] = port.get(addr_pair.ADDRESS_PAIRS, None)
+        lport['allowed_address_pairs'] = (
+            port.get(addr_pair.ADDRESS_PAIRS, None))
         return lport
 
     def _secgroup(self, sg):
@@ -242,7 +245,7 @@ class BambukPortInfo(object):
         lswitch['mtu'] = network.get('mtu')
         lswitch['subnets'] = []
         LOG.debug(subnets)
-        lswitch['subnets'] = [self._subnet(subnet) for subnet in subnets] 
+        lswitch['subnets'] = [self._subnet(subnet) for subnet in subnets]
         return lswitch
 
     def _get_subnet(self, subnets, subnet_id):
@@ -253,7 +256,7 @@ class BambukPortInfo(object):
     def _lrouter_port(self, router_port, subnets):
         port = self._lport(router_port)
         port['mac'] = port['macs'][0]
-        f_ips = router_port.get('fixed_ips', [] )
+        f_ips = router_port.get('fixed_ips', [])
         subnet_id = f_ips[0]['subnet_id']
         subnet = self._get_subnet(subnets, subnet_id)
         if subnet:

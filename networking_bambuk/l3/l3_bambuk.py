@@ -25,6 +25,7 @@ from networking_bambuk.common import constants
 
 LOG = log.getLogger(__name__)
 
+
 class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
     """Implementation of the Bambuk L3 Router Service Plugin.
 
@@ -39,7 +40,6 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
         LOG.info(_LI("Starting BambukL3RouterPlugin"))
         super(BambukL3RouterPlugin, self).__init__()
         self._plugin_property = None
-
 
     @property
     def _plugin(self):
@@ -57,16 +57,15 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
     def create_router(self, context, router):
         router = super(BambukL3RouterPlugin, self).create_router(
             context, router)
-        #TODO: implement it
+        # TODO: implement it
         return router
-
 
     def update_router(self, context, router_id, router):
         original_router = self.get_router(context, router_id)
         result = super(BambukL3RouterPlugin, self).update_router(
             context, router_id, router)
 
-        #TODO: implement it
+        # TODO: implement it
         update = {}
         added = []
         removed = []
@@ -87,9 +86,10 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
             except Exception as ex:
                 LOG.exception(_LE('Unable to update router for %s'), id)
                 # roll-back
-                super(BambukL3RouterPlugin, self).update_router(context,
-                                                             id,
-                                                             original_router)
+                super(BambukL3RouterPlugin, self).update_router(
+                    context,
+                    id,
+                    original_router)
                 raise ex
 
         return result
@@ -97,20 +97,19 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
     def delete_router(self, context, router_id):
         ret_val = super(BambukL3RouterPlugin, self).delete_router(
             context, router_id)
-        #TODO: implement it
+        # TODO: implement it
         return ret_val
-
 
     def add_router_interface(self, context, router_id, interface_info):
         router_interface_info = \
             super(BambukL3RouterPlugin, self).add_router_interface(
                 context, router_id, interface_info)
-        #TODO: implement it
+        # TODO: implement it
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
         router_interface_info = \
             super(BambukL3RouterPlugin, self).remove_router_interface(
                 context, router_id, interface_info)
-        #TODO: implement it
+        # TODO: implement it
         return router_interface_info

@@ -29,7 +29,7 @@ LOG = log.getLogger(__name__)
 
 
 class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
-    
+
     def __init__(self):
         super(TinyDbDriver, self).__init__()
 

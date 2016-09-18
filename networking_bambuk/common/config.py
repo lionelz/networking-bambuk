@@ -72,4 +72,3 @@ def get_listener_port():
 
 def get_l2_population():
     return cfg.CONF.bambuk.l2_population
-
