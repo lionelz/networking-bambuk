@@ -76,10 +76,11 @@ class BambukPortInfo(object):
             lswitch = self._get_port_lswitch(ctx, self._port, subnets)
             self.lswitches[lswitch['id']] = lswitch
         # Get lswitch for other networks as well...
-        for port in self._router_ports:
-            lswitch, _ = self._get_lswitch(ctx, port, subnets)
-            if lswitch['id'] not in self.lswitches:
-                self.lswitches[lswitch['id']] = lswitch
+        if self._router_ports:
+            for port in self._router_ports:
+                lswitch, _ = self._get_lswitch(ctx, port, subnets)
+                if lswitch['id'] not in self.lswitches:
+                    self.lswitches[lswitch['id']] = lswitch
 
         # port
         if self._port:
@@ -184,11 +185,12 @@ class BambukPortInfo(object):
         self._chassis_db(port_connect_db)
 
         # logical router
-        port_connect_db.append({
-            'table': 'lrouter',
-            'key': self.lrouter['id'],
-            'value': jsonutils.dumps(self.lrouter)
-        })
+        if self.lrouter:
+            port_connect_db.append({
+                'table': 'lrouter',
+                'key': self.lrouter['id'],
+                'value': jsonutils.dumps(self.lrouter)
+            })
 
         return port_connect_db
 

@@ -508,7 +508,7 @@ class RouterUpdateAction(Action):
                 # Send delete message to the connected ports for
                 #  the detached ports
                 vms = self._get_vms(conneted_ports)
-                endpoints = self._get_endpoints(detached_ports)
+                endpoints, _ = self._get_endpoints(detached_ports)
                 port_info = port_infos.BambukPortInfo(None, detached_ports,
                                                       endpoints,
                                                       router, None)
@@ -600,7 +600,7 @@ class RouterIfaceDetachAction(Action):
         if len(connected_ports) == 0:
             return
         vms = self._get_vms(connected_ports)
-        endpoints = self._get_endpoints(detached_ports)
+        endpoints, _ = self._get_endpoints(detached_ports)
         port_info = port_infos.BambukPortInfo(None, detached_ports,
                                               endpoints,
                                               None, None)
@@ -608,7 +608,7 @@ class RouterIfaceDetachAction(Action):
 
         # Disconnect 2
         vms = self._get_vms(detached_ports)
-        endpoints = self._get_endpoints(connected_ports)
+        endpoints, _ = self._get_endpoints(connected_ports)
         port_info = port_infos.BambukPortInfo(None, connected_ports,
                                               endpoints,
                                               None, None)
