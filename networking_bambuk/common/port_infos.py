@@ -118,7 +118,8 @@ class BambukPortInfo(object):
                     'port': tunnel.get('udp_port'),
                 })
 
-    def _port_db(self, c_db_in=None):
+    def port_db(self, c_db_in=None):
+        """ Return a DB representation of the ports. """
         if c_db_in:
             c_db = c_db_in
         else:
@@ -131,7 +132,8 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def _chassis_db(self, c_db_in=None):
+    def chassis_db(self, c_db_in=None):
+        """ Return a DB representation of the chassis. """
         if c_db_in:
             c_db = c_db_in
         else:
@@ -145,7 +147,8 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def _lswitch_db(self, c_db_in=None):
+    def lswitch_db(self, c_db_in=None):
+        """ Return a DB representation of the logical switches. """
         if c_db_in:
             c_db = c_db_in
         else:
@@ -158,9 +161,23 @@ class BambukPortInfo(object):
             })
         return c_db
 
+    def lrouter_db(self, c_db_in=None):
+        """ Return a DB representation of the logical router. """
+        if c_db_in:
+            c_db = c_db_in
+        else:
+            c_db = []
+        if self.lrouter:
+            c_db.append({
+                'table': 'lrouter',
+                'key': self.lrouter['id'],
+                'value': jsonutils.dumps(self.lrouter)
+            })
+        return c_db
+
     def to_db(self):
         """Convert the message to a DB structure."""
-        port_connect_db = self._port_db()
+        port_connect_db = self.port_db()
 
         # list of other ports
         for port in self.other_lports:
@@ -179,18 +196,13 @@ class BambukPortInfo(object):
             })
 
         # logical switch
-        self._lswitch_db(port_connect_db)
+        self.lswitch_db(port_connect_db)
 
         # list of chassis
-        self._chassis_db(port_connect_db)
+        self.chassis_db(port_connect_db)
 
         # logical router
-        if self.lrouter:
-            port_connect_db.append({
-                'table': 'lrouter',
-                'key': self.lrouter['id'],
-                'value': jsonutils.dumps(self.lrouter)
-            })
+        self.lrouter_db(port_connect_db)
 
         return port_connect_db
 

@@ -479,6 +479,13 @@ class RouterUpdateAction(Action):
     are all reachable or not from each other.
     """
 
+    @staticmethod
+    def get_port_subnet_id(port):
+        f_ips = port.get('fixed_ips', [])
+        if len(f_ips) > 0:
+            return f_ips[0]['subnet_id']
+        return None
+
     def process(self):
         """Actual worker for informing the relevant network nodes."""
         LOG.debug('RouterUpdateAction %s' % self._log)
@@ -500,10 +507,15 @@ class RouterUpdateAction(Action):
                 (port,
                  self._get_network_ports(ctx, port['network_id'])))
 
+        
         # Disconnect all networks from each other
         for (port, conneted_ports) in router_ports:
+            subnet_id = self.get_port_subnet_id(port)
+            if not subnet_id:
+                continue
             for (port_2, detached_ports) in router_ports:
-                if port['subnet_id'] == port_2['subnet_id']:
+                subnet_id_2 = self.get_port_subnet_id(port_2)
+                if subnet_id == subnet_id_2:
                     continue
                 # Send delete message to the connected ports for
                 #  the detached ports
@@ -511,7 +523,7 @@ class RouterUpdateAction(Action):
                 endpoints, _ = self._get_endpoints(detached_ports)
                 port_info = port_infos.BambukPortInfo(None, detached_ports,
                                                       endpoints,
-                                                      router, None)
+                                                      router, [port_2])
                 self._bambuk_client.delete(port_info.to_db(), vms)
 
 
@@ -589,29 +601,33 @@ class RouterIfaceDetachAction(Action):
 
         _router_ports = self._get_ports_from_router(ctx, router)
         connected_ports = []
+        connected_router_ports = []
+        detached_router_ports = []
         for port in _router_ports:
             if port['network_id'] == detached_network['id']:
-                LOG.warning('Unexpected interface is connected. %s' %
-                            port['id'])
+                detached_router_ports.append(port)
                 continue
+            connected_router_ports.append(port)
             connected_ports += self._get_network_ports(ctx, port['network_id'])
 
-        # Disconnect 1
-        if len(connected_ports) == 0:
-            return
-        vms = self._get_vms(connected_ports)
-        endpoints, _ = self._get_endpoints(detached_ports)
-        port_info = port_infos.BambukPortInfo(None, detached_ports,
-                                              endpoints,
-                                              None, None)
-        self._bambuk_client.delete(port_info.to_db(), vms)
+        if len(connected_ports):
+            # Disconnect 1
+            vms = self._get_vms(connected_ports)
+            endpoints, _ = self._get_endpoints(detached_ports)
+            port_info = port_infos.BambukPortInfo(None, detached_ports,
+                                                  endpoints,
+                                                  None, None)
+            # TODO(snapiri): We should also send delete to the lswitch
+            self._bambuk_client.delete(port_info.to_db(), vms)
 
         # Disconnect 2
         vms = self._get_vms(detached_ports)
-        endpoints, _ = self._get_endpoints(connected_ports)
+        endpoints = []
+        if len(connected_ports):
+            endpoints, _ = self._get_endpoints(connected_ports)
         port_info = port_infos.BambukPortInfo(None, connected_ports,
                                               endpoints,
-                                              None, None)
+                                              router, connected_router_ports)
         self._bambuk_client.delete(port_info.to_db(), vms)
 
 

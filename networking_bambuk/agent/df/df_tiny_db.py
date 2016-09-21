@@ -167,7 +167,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
                 cdb_deletes = [connect_db_delete]
             for cdb_delete in cdb_deletes:
                 self.delete_key(cdb_delete['table'],
-                                cdb_deletes['key'])
+                                cdb_delete['key'])
         except:
             e = sys.exc_info()[0]
             LOG.error('an error occurs %s' % e)
