@@ -62,8 +62,10 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
 
     def update_router(self, context, router_id, router):
         """Handle changes to a router.
-        
-           Currently we are only interested on the enabled/disabled 
+
+           Currently we are only interested on the enabled/disabled.
+
+        :returns: new router object
         """
         original_router = self.get_router(context, router_id)
         with context.session.begin(subtransactions=True):

@@ -119,7 +119,7 @@ class BambukPortInfo(object):
                 })
 
     def port_db(self, c_db_in=None):
-        """ Return a DB representation of the ports. """
+        """Return a DB representation of the ports."""
         if c_db_in:
             c_db = c_db_in
         else:
@@ -133,7 +133,7 @@ class BambukPortInfo(object):
         return c_db
 
     def chassis_db(self, c_db_in=None):
-        """ Return a DB representation of the chassis. """
+        """Return a DB representation of the chassis."""
         if c_db_in:
             c_db = c_db_in
         else:
@@ -148,7 +148,7 @@ class BambukPortInfo(object):
         return c_db
 
     def lswitch_db(self, c_db_in=None):
-        """ Return a DB representation of the logical switches. """
+        """Return a DB representation of the logical switches."""
         if c_db_in:
             c_db = c_db_in
         else:
@@ -162,7 +162,7 @@ class BambukPortInfo(object):
         return c_db
 
     def lrouter_db(self, c_db_in=None):
-        """ Return a DB representation of the logical router. """
+        """Return a DB representation of the logical router."""
         if c_db_in:
             c_db = c_db_in
         else:

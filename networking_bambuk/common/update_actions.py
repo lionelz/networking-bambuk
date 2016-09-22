@@ -480,7 +480,7 @@ class RouterUpdateAction(Action):
     """
 
     @staticmethod
-    def get_port_subnet_id(port):
+    def _get_port_subnet_id(port):
         f_ips = port.get('fixed_ips', [])
         if len(f_ips) > 0:
             return f_ips[0]['subnet_id']
@@ -507,14 +507,13 @@ class RouterUpdateAction(Action):
                 (port,
                  self._get_network_ports(ctx, port['network_id'])))
 
-        
         # Disconnect all networks from each other
         for (port, conneted_ports) in router_ports:
-            subnet_id = self.get_port_subnet_id(port)
+            subnet_id = self._get_port_subnet_id(port)
             if not subnet_id:
                 continue
             for (port_2, detached_ports) in router_ports:
-                subnet_id_2 = self.get_port_subnet_id(port_2)
+                subnet_id_2 = self._get_port_subnet_id(port_2)
                 if subnet_id == subnet_id_2:
                     continue
                 # Send delete message to the connected ports for
