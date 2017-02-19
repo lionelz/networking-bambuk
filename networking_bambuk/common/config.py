@@ -11,7 +11,12 @@
 #    under the License.
 
 from oslo_config import cfg
+from oslo_log import log
+
 from networking_bambuk._i18n import _
+from networking_bambuk import version
+
+from neutron.common import rpc
 
 
 bambuk_opts = [
@@ -25,7 +30,7 @@ bambuk_opts = [
                default='/tmp/connect_db.json',
                help=_('The JSON DB file cache')),
     cfg.StrOpt('listener_ip',
-               default='*',
+               default='0.0.0.0',
                help=_('The ip to listen')),
     cfg.IntOpt('listener_port',
                default=5555,
@@ -39,6 +44,15 @@ bambuk_opts = [
 
 cfg.CONF.register_opts(bambuk_opts, group='bambuk')
 
+
+def init(args, **kwargs):
+    product_name = "bambuk-dispatcher-agent"
+    log.register_options(cfg.CONF)
+    log.setup(cfg.CONF, product_name)
+    cfg.CONF(args=args, project=product_name,
+             version='%%(prog)s %s' % version.version_info.release_string(),
+             **kwargs)
+    rpc.init(cfg.CONF)
 
 def list_opts():
     return [
