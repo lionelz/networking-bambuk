@@ -11,8 +11,8 @@ LOG = log.getLogger(__name__)
 class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
 
     def __init__(self, bambuk_agent):
-        self._port = config.get_listener_port()
-        self._ip = config.get_listener_ip()
+        self._port = config.listener_port()
+        self._ip = config.listener_ip()
         super(ZeroMQReceiver, self).__init__(bambuk_agent)
 
     def receive(self):
@@ -35,17 +35,17 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
     senders = {}
 
     def get_sender(self, vm):
-        key = "tcp://%s:%d" % (vm, config.get_listener_port())
+        key = "tcp://%s:%d" % (vm, config.listener_port())
         sender = ZeroMQSenderPool.senders.get(key)
         if not sender:
-            sender = ZeroMQSender(vm, config.get_listener_port())
+            sender = ZeroMQSender(vm, config.listener_port())
             ZeroMQSenderPool.senders[key] = sender
         return sender
 
 
 class ZeroMQSender(bambuk_rpc.BambukRpcSender):
 
-    def __init__(self, host_or_ip, port=config.get_listener_port()):
+    def __init__(self, host_or_ip, port=config.listener_port()):
         super(ZeroMQSender, self).__init__()
         LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         context = zmq.Context()

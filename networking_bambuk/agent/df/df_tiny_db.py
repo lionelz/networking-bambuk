@@ -37,10 +37,10 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
         """
         LOG.info("TinyDbDriver initialize - begin")
         # open json file with tinyDb
-        self._db = TinyDB(config.get_json_db_cache())
+        self._db = TinyDB(config.json_db_cache())
         # start the configured receiver
         self._bambuk_receiver = importutils.import_object(
-            config.get_receiver(), bambuk_agent=self)
+            config.receiver(), bambuk_agent=self)
         # TODO(lionelz): check if server in DB and refresh the connectivity DB
         LOG.info("TinyDbDriver initialize - end")
 
@@ -238,7 +238,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             # TODO(lionelz): implement agent state
             self.agent_state = {
                 'binary': 'bambuk-openvswitch-agent',
-                'host': server_conf['device_id'],
+                'host': config.host(),
                 'topic': 'N/A',
                 'configurations': {
                     'tunnel_types': ['vxlan'],

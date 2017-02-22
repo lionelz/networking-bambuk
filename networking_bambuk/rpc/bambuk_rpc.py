@@ -23,7 +23,7 @@ class BambukSenderPool(object):
 class BambukAgentClient(object):
 
     def __init__(self):
-        self._sender_pool = importutils.import_object(config.get_sender_pool())
+        self._sender_pool = importutils.import_object(config.sender_pool())
 
     def state(self, server_conf, vm):
         try:

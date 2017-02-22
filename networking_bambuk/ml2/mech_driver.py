@@ -110,9 +110,6 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
 
     def create_port_precommit(self, context):
         port = context.current
-        binding_profile = port['binding:profile']
-        if 'provider_mgnt_ip' not in binding_profile:
-            return
 
         create_update_log.create_bambuk_update_log(
             context._plugin_context,
@@ -126,9 +123,6 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
 
     def update_port_precommit(self, context):
         port = context.current
-        binding_profile = port['binding:profile']
-        if 'provider_mgnt_ip' not in binding_profile:
-            return
 
         create_update_log.create_bambuk_update_log(
             context._plugin_context,

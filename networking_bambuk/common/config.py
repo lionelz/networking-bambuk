@@ -38,15 +38,34 @@ bambuk_opts = [
     cfg.BoolOpt('l2_population', default=False,
                 help=_("Extension to use alongside ml2 plugin's l2population "
                        "mechanism driver.")),
-    cfg.StrOpt('bambuk_host',
-               help=_('The NIC IP for rpc that needs to listen')),
+    cfg.StrOpt('provider', default='null',
+               help=_("Provider: aws|openstack|null.")),
+    cfg.StrOpt('aws_access_key_id',
+               help=_("AWS Access Key Id.")),
+    cfg.StrOpt('aws_secret_access_key',
+               help=_("AWS Secret Access Key.")),
+    cfg.StrOpt('aws_region_name',
+               help=_("AWS Region Name.")),
+    cfg.StrOpt('aws_vpc',
+               help=_("AWS VPC id.")),
+    cfg.StrOpt('os_username',
+               help=_("The Openstack username.")),
+    cfg.StrOpt('os_password',
+               help=_("The Openstack Password.")),
+    cfg.StrOpt('os_tenant_id',
+               help=_("The Openstack Tenant Id.")),
+    cfg.StrOpt('os_auth_url',
+               help=_("The Openstack Auth Url (keystone).")),
+    cfg.StrOpt('os_availability_zone',
+               default='nova',
+               help=_("The Openstack Availability zone.")),
 ]
 
 cfg.CONF.register_opts(bambuk_opts, group='bambuk')
 
 
 def init(args, **kwargs):
-    product_name = "bambuk-dispatcher-agent"
+    product_name = 'bambuk-dispatcher-agent'
     log.register_options(cfg.CONF)
     log.setup(cfg.CONF, product_name)
     cfg.CONF(args=args, project=product_name,
@@ -60,29 +79,69 @@ def list_opts():
     ]
 
 
-def get_sender_pool():
+def sender_pool():
     return cfg.CONF.bambuk.sender_pool
 
 
-def get_receiver():
+def receiver():
     return cfg.CONF.bambuk.receiver
 
 
-def get_json_db_cache():
+def json_db_cache():
     return cfg.CONF.bambuk.json_db_cache
 
 
-def get_bambuk_host():
-    return cfg.CONF.bambuk.bambuk_host
-
-
-def get_listener_ip():
+def listener_ip():
     return cfg.CONF.bambuk.listener_ip
 
 
-def get_listener_port():
+def listener_port():
     return cfg.CONF.bambuk.listener_port
 
 
-def get_l2_population():
+def l2_population():
     return cfg.CONF.bambuk.l2_population
+
+
+def host():
+    return cfg.CONF.host
+
+
+def provider():
+    return cfg.CONF.bambuk.provider
+
+
+def aws_access_key_id():
+    return cfg.CONF.bambuk.aws_access_key_id
+
+
+def aws_secret_access_key():
+    return cfg.CONF.bambuk.aws_secret_access_key
+
+
+def aws_region_name():
+    return cfg.CONF.bambuk.aws_region_name
+
+
+def aws_vpc():
+    return cfg.CONF.bambuk.aws_vpc
+
+
+def os_username():
+    return cfg.CONF.bambuk.os_username
+
+
+def os_password():
+    return cfg.CONF.bambuk.os_password
+
+
+def os_tenant_id():
+    return cfg.CONF.bambuk.os_tenant_id
+
+
+def os_auth_url():
+    return cfg.CONF.bambuk.os_auth_url
+
+
+def os_availability_zone():
+    return cfg.CONF.bambuk.os_availability_zone

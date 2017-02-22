@@ -56,11 +56,7 @@ def create_ovs_vif_port(bridge, dev, iface_id, mac, instance_id):
                'external-ids:attached-mac=%s' % mac,
                'external-ids:vm-uuid=%s' % instance_id])
 
-
-def main():
-    iface_id = sys.argv[1]
-    mac = sys.argv[2]
-    instance_id = sys.argv[3]
+def plug_vif(iface_id, mac, instance_id):
     tap = get_tap_name(iface_id)
     ovs_vsctl(['del-port', 'br-int', tap])
     create_ovs_vif_port('br-int',
@@ -70,6 +66,10 @@ def main():
                         instance_id)
     execute('ip', 'link', 'set', tap, 'address', mac)
     execute('ip', 'link', 'set', tap, 'up')
+
+
+def main():
+    plug_vif(sys.argv[1], sys.argv[2], sys.argv[3])
 
 if __name__ == '__main__':
     main()

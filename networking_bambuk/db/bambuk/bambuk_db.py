@@ -1,18 +1,3 @@
-#
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
-#    not use this file except in compliance with the License. You may obtain
-#    a copy of the License at
-#
-#         http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#    License for the specific language governing permissions and limitations
-#    under the License.
-#
-
-
 from neutron.db import model_base
 
 from oslo_log import log as o_log
@@ -47,9 +32,18 @@ class BambukUpdateLog(model_base.BASEV2,
     nb_retry = sa.Column(sa.SmallInteger)
     last_retry = sa.Column(sa.DateTime)
     next_retry = sa.Column(sa.DateTime)
-    # TODO: Any migration code needed?
     extra_id = sa.Column(sa.String(length=36))
     extra_data = sa.Column(sa.String(length=255))
+
+
+class ProviderPort(model_base.BASEV2,
+                   model_base.HasId,
+                   model_base.HasTenant):
+    """Define an provider port."""
+
+    name = sa.Column(sa.String(length=255), nullable=True)
+    provider_ip = sa.Column(sa.String(length=64), nullable=False)
+    provider_mngt_ip = sa.Column(sa.String(length=64), nullable=False)
 
 
 def get_one_bambuk_update_log(context):

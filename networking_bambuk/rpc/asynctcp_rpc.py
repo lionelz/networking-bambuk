@@ -71,8 +71,8 @@ class TCPServer(asyncore.dispatcher):
 class AsyncTCPReceiver(bambuk_rpc.BambukRpcReceiver):
 
     def __init__(self, bambuk_agent):
-        self._port = config.get_listener_port()
-        self._ip = config.get_listener_ip()
+        self._port = config.listener_port()
+        self._ip = config.listener_ip()
         super(AsyncTCPReceiver, self).__init__(bambuk_agent)
 
     def receive(self):
@@ -123,7 +123,7 @@ class AsyncTCPSenderPool(bambuk_rpc.BambukSenderPool):
 
 class AsyncTCPSender(bambuk_rpc.BambukRpcSender):
 
-    def __init__(self, host_or_ip, port=config.get_listener_port()):
+    def __init__(self, host_or_ip, port=config.listener_port()):
         super(AsyncTCPSender, self).__init__()
         LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         self.address = (host_or_ip, port)

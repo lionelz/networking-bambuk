@@ -326,7 +326,7 @@ class PortUpdateAction(Action):
 
         # TODO(lionelz): add tunnel_types to the port data profile
         #                to support other than vxlan
-        if config.get_l2_population():
+        if config.l2_population():
             # create or update the agent
             agent = self._plugin.create_or_update_agent(
                 ctx, agent_state)
