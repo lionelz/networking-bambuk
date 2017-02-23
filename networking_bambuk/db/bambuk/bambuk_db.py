@@ -42,8 +42,9 @@ class ProviderPort(model_base.BASEV2,
     """Define an provider port."""
 
     name = sa.Column(sa.String(length=255), nullable=True)
+    port_id = sa.Column(sa.String(length=36), nullable=False)
     provider_ip = sa.Column(sa.String(length=64), nullable=False)
-    provider_mngt_ip = sa.Column(sa.String(length=64), nullable=False)
+    provider_mgnt_ip = sa.Column(sa.String(length=64), nullable=False)
 
 
 def get_one_bambuk_update_log(context):

@@ -6,7 +6,7 @@ import time
 from networking_bambuk.cmd import plug_vif
 
 
-MNGT_IP_FILE = '/etc/bambuk/mngt_ip'
+MGNT_IP_FILE = '/etc/bambuk/mgnt_ip'
 
 
 def process_exist(words):
@@ -52,8 +52,8 @@ class Startup(object):
         if 'host' in params:
             subprocess.call(['hostname', params['host']]) 
             self._write_file('/etc/hostname', params['host'])
-        if 'mngt_ip' in params:
-            self._write_file(MNGT_IP_FILE, params['mngt_ip'])
+        if 'mgnt_ip' in params:
+            self._write_file(MNGT_IP_FILE, params['mgnt_ip'])
 
         # TODO:
         #  - clean-up ovs
