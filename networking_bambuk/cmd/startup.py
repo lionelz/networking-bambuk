@@ -1,3 +1,4 @@
+import ConfigParser
 import json
 import os
 import SocketServer
@@ -6,7 +7,7 @@ import time
 from networking_bambuk.cmd import plug_vif
 
 
-MNGT_IP_FILE = '/etc/bambuk/mngt_ip'
+CONFIG_FILE = '/etc/neutron/bambuk.ini'
 
 
 def process_exist(words):
@@ -22,6 +23,21 @@ def process_exist(words):
     return False
 
 
+def start_df(port_id, mac, host):
+    # TODO:
+    #  - clean-up ovs: remove br-int and br-ex, recreate it
+    pid = process_exist(['df-local-controller'])
+    if pid:
+        subprocess.call(['kill', str(pid)])
+    subprocess.Popen([
+        '/usr/local/bin/df-local-controller',
+        '--config-file', '/etc/neutron/neutron.conf',
+        '--config-file', '/etc/neutron/dragonflow.ini',
+        '--log-file', '/var/log/dragonflow.log'
+    ])
+    plug_vif.plug_vif(port_id, mac, host)
+
+
 class Startup(object):
 
     def _write_file(self, file_name, content):
@@ -33,6 +49,14 @@ class Startup(object):
                     dest.write(line)
 
     def apply(self, params):
+        # write the configuration
+        with open(CONFIG_FILE, 'w') as cfgfile:
+            c = ConfigParser.ConfigParser()
+            c.add_section('bambuk')
+            for k, v in params.iteritems():
+                c.set('bambuk', k, v)
+            c.write(cfgfile)
+
         proc = subprocess.Popen(
             ['find', '/etc', '-name', '*.tmpl'],
             stdout=subprocess.PIPE,
@@ -52,27 +76,8 @@ class Startup(object):
         if 'host' in params:
             subprocess.call(['hostname', params['host']]) 
             self._write_file('/etc/hostname', params['host'])
-        if 'mngt_ip' in params:
-            self._write_file(MNGT_IP_FILE, params['mngt_ip'])
 
-        # TODO:
-        #  - clean-up ovs
-
-        pid = process_exist(['df-local-controller'])
-        if pid:
-            subprocess.call(['kill', str(pid)])
-        subprocess.call([
-            '/usr/local/bin/df-local-controller',
-            '--config-file /etc/neutron/neutron.conf',
-            '--config-file /etc/neutron/dragonflow.ini',
-            '--log-file /var/logs/dragonflow.log'
-        ])
-        time.sleep(10)
-        plug_vif.plug_vif(
-            params['port_id'],
-            params['mac'],
-            params['host']
-        )
+        start_df(params['port_id'], params['mac'], params['host'])
 
 
 class StartupTCPHandler(SocketServer.StreamRequestHandler):
@@ -88,9 +93,17 @@ class StartupTCPHandler(SocketServer.StreamRequestHandler):
 def main():
     HOST = '0.0.0.0'
     PORT = 8080
-    if os.path.exists(MNGT_IP_FILE):
-        with open(MNGT_IP_FILE, 'r') as source:
-            HOST = source.readline()                
+
+    if os.path.exists(CONFIG_FILE):
+        c = ConfigParser.ConfigParser()
+        c.read(CONFIG_FILE)
+        start_df(
+            c.get('bambuk', 'port_id'),
+            c.get('bambuk', 'mac'),
+            c.get('bambuk', 'host')
+        )
+
+    SocketServer.TCPServer.allow_reuse_address = True
     server = SocketServer.TCPServer((HOST, PORT), StartupTCPHandler)
     print('Started config tcp server on %s:%s ' % (HOST, PORT))
 
