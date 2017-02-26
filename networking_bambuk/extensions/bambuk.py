@@ -34,7 +34,7 @@ RESOURCE_ATTRIBUTE_MAP = {
                     'is_visible': True, 'required': True},
         'provider_ip': {'allow_post': True, 'allow_put': False,
                         'is_visible': True, 'default': None},
-        'provider_mngt_ip': {'allow_post': True, 'allow_put': False,
+        'provider_mgnt_ip': {'allow_post': True, 'allow_put': False,
                              'is_visible': True, 'default': None},
         'provider': {'allow_post': False, 'allow_put': False,
                      'is_visible': True},

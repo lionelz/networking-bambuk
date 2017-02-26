@@ -76,7 +76,6 @@ class Startup(object):
         if 'host' in params:
             subprocess.call(['hostname', params['host']]) 
             self._write_file('/etc/hostname', params['host'])
-
         start_df(params['port_id'], params['mac'], params['host'])
 
 
