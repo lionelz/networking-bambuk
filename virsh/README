@@ -1,0 +1,26 @@
+This directory contains deployment scripts to test bambuk in large scale.
+The scripts are not to be used directly "Out of the box", but rather need
+customization for the specific envronment.
+First, a template machine should be created, the scripts assume that the 
+machine disk is a file of qcow2 format and its name is the same as the 
+name of the VM. (Though it is easy to get the name of the file from the vm
+itself, this is still work to be done).
+
+Note: As the IP addressing of the VMs only changes the last octet, the
+scripts are limited to creating up to 254 VMs.
+
+Before creating VMs, one should edit the configure.sh script in the templates
+directory, and set the names of the interfaces to reflect the actual names of
+the interfaces in the template VMm, and the relevant IP networks.
+Also, the create_vm.sh script should be modified accordingly.
+
+The usage to create multiple VMs is something like this:
+#./prepare.sh <template VM name>
+#for i in {1..50}; do ./create_vm new_vm$i $i; done
+
+This should create 50 VMs based on the template VM.
+Note that you can modify the configure.sh script to perform any specific
+configuration for the VMs before they start.
+
+
+
