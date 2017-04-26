@@ -42,6 +42,12 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
             ZeroMQSenderPool.senders[key] = sender
         return sender
 
+    def start_bulk_send(self):
+        return 1
+    
+    def loop(self, send_id):
+        pass
+
 
 class ZeroMQSender(bambuk_rpc.BambukRpcSender):
 
@@ -58,6 +64,6 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self._socket.RCVTIMEO = 5000
         self._socket.connect("tcp://%s:%d" % (host_or_ip, port))
 
-    def send(self, message):
+    def send(self, message, send_id=None):
         self._socket.send(message, zmq.NOBLOCK)
         return self._socket.recv()

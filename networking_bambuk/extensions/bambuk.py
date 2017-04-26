@@ -24,7 +24,7 @@ RESOURCE_ATTRIBUTE_MAP = {
     'providerports': {
         'id': {'allow_post': False, 'allow_put': False,
                'is_visible': True},
-        'name': {'allow_post': True, 'allow_put': False,
+        'name': {'allow_post': True, 'allow_put': True,
                  'is_visible': True},
         'type': {'allow_post': True, 'allow_put': False,
                  'is_visible': True, 'default': 'bambuk'},

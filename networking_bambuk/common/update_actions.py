@@ -13,10 +13,12 @@
 from neutron.api.v2 import attributes
 from neutron.common import topics
 from neutron import context as n_context
+from neutron import manager
 from neutron.db import db_base_plugin_v2
 from neutron.db import models_v2
 from neutron.db import securitygroups_db
-from neutron import manager
+from neutron.extensions import l3
+from neutron.extensions import securitygroup as ext_sg
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import managers
 from neutron.plugins.ml2 import rpc
@@ -32,19 +34,18 @@ from oslo_serialization import jsonutils
 
 # Defined in neutron_lib.constants
 ROUTER_INTERFACE_OWNERS = {
-    "network:router_gateway",                # External net port
-    "network:router_interface_distributed",  # Internal net port distributed
+    'network:router_gateway',                # External net port
+    'network:router_interface_distributed',  # Internal net port distributed
 }
 
 LOG = o_log.getLogger(__name__)
 
 
-def _extend_port_dict_std_attr_id(res, port):
-    res['standard_attr_id'] = port['standard_attr_id']
-    return res
+def _extend_dict_std_attr_id(res, db_obj):
+    res['standard_attr_id'] = db_obj['standard_attr_id']
 
 
-def _port_model_hook(context, original_model, query):
+def _port_model_hook(ctx, original_model, query):
     port_id_col = securitygroups_db.SecurityGroupPortBinding.port_id
     query = query.outerjoin(
         securitygroups_db.SecurityGroupPortBinding,
@@ -58,22 +59,6 @@ def _port_result_filter_hook(query, filters):
         return query
     sgpb_sg_id = securitygroups_db.SecurityGroupPortBinding.security_group_id
     return query.filter(sgpb_sg_id == val)
-
-
-def get_port_binding(port):
-    """Get the port binding data for a given port."""
-    binding_profile = port['binding:profile']
-    if 'provider_mgnt_ip' not in binding_profile:
-        return None, None, None
-
-    host_id = port['binding:host_id']
-    provider_mgnt_ip = binding_profile['provider_mgnt_ip']
-    if 'provider_data_ip' in binding_profile:
-        provider_data_ip = binding_profile['provider_data_ip']
-    else:
-        provider_data_ip = provider_mgnt_ip
-
-    return host_id, provider_mgnt_ip, provider_data_ip
 
 
 class Action(object):
@@ -91,48 +76,48 @@ class Action(object):
         self._bambuk_client = bambuk_client
         # Register dict extend port attributes
         db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            attributes.PORTS, ['_extend_port_dict_std_attr_id'])
+            attributes.PORTS, ['_extend_dict_std_attr_id'])
+        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+            attributes.NETWORKS, ['_extend_dict_std_attr_id'])
+        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+            ext_sg.SECURITYGROUPS, ['_extend_dict_std_attr_id'])
         db_base_plugin_v2.NeutronDbPluginV2.register_model_query_hook(
             models_v2.Port,
             'security_group_binding_port',
             '_port_model_hook',
             None,
             '_port_result_filter_hook')
-        self._plugin_property = None
-        self._l3_plugin_property = None
+        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+            l3.ROUTERS, ['_extend_dict_std_attr_id'])
         self._notifier = rpc.AgentNotifierApi(topics.AGENT)
         self._type_manager = managers.TypeManager()
 
     @property
     def _plugin(self):
-        if self._plugin_property is None:
+        if not hasattr(self, '_plugin_property'):
             pp = manager.NeutronManager.get_plugin()
-            pp._extend_port_dict_std_attr_id = _extend_port_dict_std_attr_id
+            pp._extend_dict_std_attr_id = _extend_dict_std_attr_id
             pp._port_model_hook = _port_model_hook
             pp._port_result_filter_hook = _port_result_filter_hook
             self._plugin_property = pp
         return self._plugin_property
 
     @property
+    def _bambuk_plugin(self):
+        if not hasattr(self, '_bambuk_plugin_property'):
+            pp = manager.NeutronManager.get_service_plugins().get(
+                    'bambuk')
+            self._bambuk_plugin_property = pp
+        return self._bambuk_plugin_property
+
+    @property
     def _l3_plugin(self):
-        if self._l3_plugin_property is None:
-            self._l3_plugin_property = (
-                manager.NeutronManager.get_service_plugins().get(
-                    p_const.L3_ROUTER_NAT))
+        if not hasattr(self, '_l3_plugin_property'):
+            pp = manager.NeutronManager.get_service_plugins().get(
+                    p_const.L3_ROUTER_NAT)
+            pp._extend_dict_std_attr_id = _extend_dict_std_attr_id
+            self._l3_plugin_property = pp
         return self._l3_plugin_property
-
-    def _update(self, table, key, value, vms):
-        self._bambuk_client.update({
-            'table': table,
-            'key': key,
-            'value': value,
-        }, vms)
-
-    def _delete(self, table, key):
-        self._bambuk_client.delete({
-            'table': table,
-            'key': key
-        })
 
     @staticmethod
     def _get_vms(ports, exclude_ids=None):
@@ -140,12 +125,12 @@ class Action(object):
         Get all the vms holding the ports.
 
         it is possible to specify optional port_ids to exclude
-        :param ports: the ports to look for
-        :param exclude_ids: port_ids to exclude
-        :type ports: list of dict
-        :type exclude_ids: list of str
-        :return: the VM objects associated with the ports
-        :rtype: list of dict
+        :param ports: the ports to check if bambuk port
+        :param exclude_ids: neutron port ids to exclude
+        :type ports: list
+        :type exclude_ids: list
+        :return: the list of mgnt ips objects associated with the ports
+        :rtype: set
         """
         vms = set()
         for port in ports:
@@ -160,15 +145,25 @@ class Action(object):
         """Actual worker method."""
         pass
 
-    @staticmethod
-    def _get_endpoints(ports, port=None):
+    def _get_provider_port(self, ctx, port):
+        """Get the port provider port for a given port."""
+
+        binding_profile = port['binding:profile']
+        if 'provider_mgnt_ip' in binding_profile:
+            provider_port = self._bambuk_plugin.get_providerport(
+                ctx, port['id'])
+            provider_port['host_id'] = port.get(
+                'binding:host_id', provider_port.get('name'))
+            return provider_port
+
+    def _get_endpoints(self, ctx, ports, port=None):
         """
         Get all the chassis holding the ports.
 
         it is possible to mark optional port as a special one
 
         :param ports: the ports to look for
-        :param port: "special" port
+        :param port: 'special' port
         :type ports: list of dict
         :type port: dict
         :return: the chassis objects associated with the ports and the
@@ -177,16 +172,18 @@ class Action(object):
         """
         endpoints = []
         port_db = None
+        LOG.debug('ports %s' % ports)
         for _port in ports:
+            LOG.debug('port %s' % _port)
             if port and port['id'] == _port['id']:
                 # This is our port
                 port_db = _port
             else:
-                op_h, op_mgnt_ip, op_data_ip = get_port_binding(_port)
-                if op_mgnt_ip:
+                provider_port = self._get_provider_port(ctx, _port)
+                if provider_port:
                     tunnel = {
-                        'ip_address': op_data_ip,
-                        'host': op_h,
+                        'ip_address': provider_port['provider_ip'],
+                        'host': provider_port['host_id'],
                         'udp_port': p_const.VXLAN_UDP_PORT,
                     }
                     # TODO(lionelz): support other types from port data profile
@@ -209,7 +206,7 @@ class Action(object):
 
         Get the router for the specified network, along with it,
         get the router ports and the reachable ports from the router.
-        :param ctx: Context
+        :param ctx: ctx
         :param network_id: ID of the network to work on
         :type ctx: dict
         :type network_id: str
@@ -245,7 +242,7 @@ class Action(object):
     def _get_routers_for_net(self, ctx, network_id):
         """Get all the routers connected to the specified network.
 
-        :param ctx: Context
+        :param ctx: ctx
         :param network_id: ID of the network to work on
         :type ctx: dict
         :type network_id: str
@@ -268,7 +265,7 @@ class Action(object):
     def _get_ports_from_router(self, ctx, router):
         """Get all the ports associated with a specific distributed router.
 
-        :param ctx: context
+        :param ctx: ctx
         :param router: router object to query
         :type router: dict
         :return: a list of the ports associated with the router
@@ -310,17 +307,18 @@ class PortUpdateAction(Action):
                 {'log': self._log['obj_id'], 'ex': e})
             return
 
-        host_id, provider_mgnt_ip, provider_data_ip = get_port_binding(port)
-        if not provider_mgnt_ip:
+        provier_port = self._get_provider_port(ctx, port)
+        if not provier_port:
             return
 
         server_conf = {
-            'device_id': host_id,
-            'local_ip': provider_data_ip
+            'device_id': provier_port['host_id'],
+            'local_ip': provier_port['provider_ip']
         }
 
         # get agent state
-        agent_state = self._bambuk_client.state(server_conf, provider_mgnt_ip)
+        agent_state = self._bambuk_client.state(
+            server_conf, provier_port['provider_mgnt_ip'])
         if not agent_state:
             return
 
@@ -335,7 +333,7 @@ class PortUpdateAction(Action):
                 ctx,
                 filters={
                     'agent_type': [agent_state['agent_type']],
-                    'host': [host_id]
+                    'host': [provier_port['host_id']]
                 }
             )
             LOG.debug(agents)
@@ -350,9 +348,8 @@ class PortUpdateAction(Action):
             self._get_router_and_ports_from_net(ctx, port['network_id']))
 
         LOG.debug(port['network_id'])
-        LOG.debug(other_ports)
 
-        endpoints, port_db = self._get_endpoints(other_ports, port)
+        endpoints, port_db = self._get_endpoints(ctx, other_ports, port)
         if port_db:
             other_ports.remove(port_db)
         LOG.debug("endpoints %s" % endpoints)
@@ -363,24 +360,23 @@ class PortUpdateAction(Action):
                     TUNNEL_TYPES[tunnel_type])
                 LOG.debug("driver: %s" % driver)
                 if driver:
-                    tunnel = driver.obj.add_endpoint(provider_data_ip,
-                                                     host_id)
+                    tunnel = driver.obj.add_endpoint(
+                        provier_port['provider_ip'], provier_port['host_id'])
                     # Notify all other listening agents
-                    self._notifier.tunnel_update(ctx,
-                                                 tunnel.ip_address,
-                                                 tunnel_type)
+                    self._notifier.tunnel_update(
+                        ctx, tunnel.ip_address, tunnel_type)
                     # get the relevant tunnels entry
                     entry = {'tunnels': driver.obj.get_endpoints()}
-                    LOG.debug("entry: %s" % entry)
+                    LOG.debug('entry: %s' % entry)
                     entry['tunnel_type'] = tunnel_type
                     LOG.info('entry %s' % entry)
                     endpoints.append(entry)
-        LOG.debug("endpoints %s" % endpoints)
-        port_info = port_infos.BambukPortInfo(port_db, other_ports,
-                                              endpoints,
-                                              router, router_ports)
+        LOG.debug('endpoints %s' % endpoints)
+        port_info = port_infos.BambukPortInfo(
+            port_db, other_ports, endpoints, router, router_ports)
 
-        self._bambuk_client.apply(port_info.to_db(), provider_mgnt_ip)
+        self._bambuk_client.apply(
+            port_info.to_db(), provier_port['provider_mgnt_ip'])
 
         # update all other ports for the possible new endpoint
         vms = self._get_vms(other_ports, [port['id']])
@@ -463,12 +459,11 @@ class SecurityGroupUpdateAction(Action):
         sg, ports = self._get_ports_by_sg_id(ctx, self._log['obj_id'])
         vms = self._get_vms(ports)
 
-        self._bambuk_client.update(
-            {
+        self._bambuk_client.update({
                 'table': 'secgroup',
                 'key': sg['id'],
                 'value': jsonutils.dumps(sg)
-            }, vms)
+        }, vms)
 
 
 class RouterUpdateAction(Action):
@@ -558,8 +553,8 @@ class RouterIfaceAttachAction(Action):
 
         LOG.debug(ports)
 
-        endpoints, _ = self._get_endpoints(ports)
-        LOG.debug("endpoints %s" % endpoints)
+        endpoints, _ = self._get_endpoints(ctx, ports)
+        LOG.debug('endpoints %s' % endpoints)
         port_info = port_infos.BambukPortInfo(None, ports,
                                               endpoints,
                                               router, router_ports)
@@ -584,7 +579,7 @@ class RouterIfaceDetachAction(Action):
             router = self._l3_plugin.get_router(ctx, self._log['obj_id'])
         except Exception as ex:
             # In case the router does not exist any more, just log and return
-            LOG.error("Error occurred: %s", ex)
+            LOG.error('Error occurred: %s', ex)
             return
         if not router['admin_state_up'] or not router['distributed']:
             LOG.debug('Router is not relevant %s' % router['id'])
@@ -593,7 +588,7 @@ class RouterIfaceDetachAction(Action):
             detached_network = self._plugin.get_network(ctx,
                                                         self._log['extra_id'])
         except Exception as ex:
-            LOG.error("Error with network: %s", self._log['extra_id'])
+            LOG.error('Error with network: %s', self._log['extra_id'])
             return
 
         detached_ports = self._get_network_ports(ctx, detached_network['id'])
@@ -612,7 +607,7 @@ class RouterIfaceDetachAction(Action):
         if len(connected_ports):
             # Disconnect 1
             vms = self._get_vms(connected_ports)
-            endpoints, _ = self._get_endpoints(detached_ports)
+            endpoints, _ = self._get_endpoints(ctx, detached_ports)
             port_info = port_infos.BambukPortInfo(None, detached_ports,
                                                   endpoints,
                                                   None, None)
@@ -623,7 +618,7 @@ class RouterIfaceDetachAction(Action):
         vms = self._get_vms(detached_ports)
         endpoints = []
         if len(connected_ports):
-            endpoints, _ = self._get_endpoints(connected_ports)
+            endpoints, _ = self._get_endpoints(ctx, connected_ports)
         port_info = port_infos.BambukPortInfo(None, connected_ports,
                                               endpoints,
                                               router, connected_router_ports)

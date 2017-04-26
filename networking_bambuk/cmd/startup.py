@@ -3,7 +3,6 @@ import json
 import os
 import SocketServer
 import subprocess
-import time
 from networking_bambuk.cmd import plug_vif
 
 

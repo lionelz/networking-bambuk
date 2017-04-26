@@ -11,7 +11,6 @@ from neutron import manager
 from neutron.db import common_db_mixin
 
 from oslo_log import log as logging
-from oslo_utils import uuidutils
 
 from sqlalchemy.orm import exc
 
@@ -103,7 +102,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         with context.session.begin(subtransactions=True):
             # create in DB
             pp_db = bambuk_db.ProviderPort(
-                id=uuidutils.generate_uuid(),
+                id=port_id,
                 tenant_id=tenant_id,
                 port_id=port_id,
                 name=p_port.get('name'),
@@ -117,6 +116,15 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 bambuk_db.OBJ_TYPE_PORT,
                 bambuk_db.ACTION_UPDATE,
             )
+        self._core_plugin.update_port(
+            context,
+            port_id,
+            {
+                'port': {'binding:profile': {
+                    'provider_mgnt_ip': pp_db.provider_mgnt_ip
+                }}
+            }
+        )
         self._send(
             pp_db.provider_mgnt_ip,
             8080,
@@ -151,7 +159,15 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 bambuk_db.OBJ_TYPE_PORT,
                 bambuk_db.ACTION_UPDATE,
             )
-
+        self._core_plugin.update_port(
+            context,
+            providerport_id,
+            {
+                'port': {'binding:profile': {
+                    'provider_mgnt_ip': pp_db.provider_mgnt_ip
+                }}
+            }
+        )
         self._send(
             pp_db.provider_mgnt_ip,
             8080,

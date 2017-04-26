@@ -19,6 +19,14 @@ class BambukSenderPool(object):
     def get_sender(self, vm):
         pass
 
+    @abc.abstractmethod
+    def start_bulk_send(self):
+        pass
+    
+    @abc.abstractmethod
+    def loop(self, send_id):
+        pass
+
 
 class BambukAgentClient(object):
 
@@ -39,18 +47,24 @@ class BambukAgentClient(object):
             LOG.error('an error occurs: %s', ex)
 
     def update(self, connect_db_update, vms):
+        send_id = self._sender_pool.start_bulk_send()
         for vm in vms:
             try:
-                self._sender_pool.get_sender(vm).update(connect_db_update)
+                self._sender_pool.get_sender(vm).update(
+                    connect_db_update, send_id)
             except Exception as ex:
                 LOG.error('an error occurs: %s', ex)
+        self._sender_pool.loop(send_id)
 
     def delete(self, connect_db_delete, vms):
+        send_id = self._sender_pool.start_bulk_send()
         for vm in vms:
             try:
-                self._sender_pool.get_sender(vm).delete(connect_db_delete)
+                self._sender_pool.get_sender(vm).delete(
+                    connect_db_delete, send_id)
             except Exception as ex:
                 LOG.error('an error occurs: %s', ex)
+        self._sender_pool.loop(send_id)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -61,11 +75,11 @@ class BambukRpc(object):
         pass
 
     @abc.abstractmethod
-    def apply(self, connect_db):
+    def apply(self, connect_db, send_id):
         pass
 
     @abc.abstractmethod
-    def update(self, connect_db_delete):
+    def update(self, connect_db_delete, send_id):
         '''
         connect_db_delete: {
             'table': 'xxx',
@@ -75,7 +89,7 @@ class BambukRpc(object):
         pass
 
     @abc.abstractmethod
-    def delete(self, connect_db_update):
+    def delete(self, connect_db_update, send_id):
         '''
         connect_db_update: {
             'table': 'xxx',
@@ -140,32 +154,35 @@ class BambukRpcSender(BambukRpc):
         pass
 
     @abc.abstractmethod
-    def send(self, message):
+    def send(self, message, send_id=None):
         pass
 
-    def call_method(self, method, **kwargs):
+    def call_method(self, method, send_id=None, **kwargs):
         message = {'method': method}
         for name, value in kwargs.items():
             message[name] = value
         message_json = json.dumps(message)
         LOG.debug("Sending message: %s" % message_json)
-        response_json = self.send(message_json)
+        response_json = self.send(message_json, send_id)
         LOG.debug("Received response: %s" % response_json)
-        return json.loads(response_json)
+        if not send_id:
+            return json.loads(response_json)
 
-    def state(self, server_conf):
-        return self.call_method('state', server_conf=server_conf)
+    def state(self, server_conf, send_id=None):
+        return self.call_method(
+            'state', send_id, server_conf=server_conf)
 
-    def apply(self, connect_db):
-        return self.call_method('apply', connect_db=connect_db)
+    def apply(self, connect_db, send_id=None):
+        return self.call_method(
+            'apply', send_id, connect_db=connect_db)
 
-    def update(self, connect_db_update):
-        return self.call_method('update',
-                                connect_db_update=connect_db_update)
+    def update(self, connect_db_update, send_id=None):
+        return self.call_method(
+            'update', send_id, connect_db_update=connect_db_update)
 
-    def delete(self, connect_db_delete):
-        return self.call_method('delete',
-                                connect_db_delete=connect_db_delete)
+    def delete(self, connect_db_delete, send_id=None):
+        return self.call_method(
+            'delete', send_id, connect_db_delete=connect_db_delete)
 
 
 @six.add_metaclass(abc.ABCMeta)

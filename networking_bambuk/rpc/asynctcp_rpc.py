@@ -1,5 +1,6 @@
 from eventlet.green import asyncore
 import socket
+import uuid
 
 from oslo_log import log
 from networking_bambuk.rpc import bambuk_rpc
@@ -117,19 +118,33 @@ class TCPClient(asyncore.dispatcher):
 
 class AsyncTCPSenderPool(bambuk_rpc.BambukSenderPool):
 
-    def get_sender(self, vm):
-        return AsyncTCPSender(vm)
+    maps = {}
+
+    def get_sender(self, vm, send_id=None):
+        if send_id:
+            return AsyncTCPSender(vm, AsyncTCPSenderPool.maps[send_id])
+        return AsyncTCPSender(vm, map())
+        
+    def start_bulk_send(self):
+        send_id = uuid.uuid4()
+        AsyncTCPSenderPool.maps[send_id] = map()
+        return send_id
+
+    def loop(self, send_id):
+        asyncore.loop(map=AsyncTCPSenderPool.maps[send_id])
+        AsyncTCPSenderPool.maps[send_id]
 
 
 class AsyncTCPSender(bambuk_rpc.BambukRpcSender):
 
-    def __init__(self, host_or_ip, port=config.listener_port()):
+    def __init__(self, host_or_ip, m, port=config.listener_port()):
         super(AsyncTCPSender, self).__init__()
         LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         self.address = (host_or_ip, port)
+        self._map = m
 
-    def send(self, message):
-        m = {}
-        c = TCPClient(self.address, message, m)
-        asyncore.loop(map=m)
-        return c.result
+    def send(self, message, send_id=None):
+        c = TCPClient(self.address, message, self._map)
+        if not send_id:
+            asyncore.loop(map=self._map)
+            return c.result
