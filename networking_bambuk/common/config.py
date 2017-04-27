@@ -24,7 +24,7 @@ bambuk_opts = [
                default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPSenderPool',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('receiver',
-               default='networking_bambuk.rpc.AsyncTCPSenderPool.AsyncTCPReceiver',
+               default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPReceiver',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('json_db_cache',
                default='/tmp/connect_db.json',
