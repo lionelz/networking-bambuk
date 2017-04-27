@@ -123,16 +123,16 @@ class AsyncTCPSenderPool(bambuk_rpc.BambukSenderPool):
     def get_sender(self, vm, send_id=None):
         if send_id:
             return AsyncTCPSender(vm, AsyncTCPSenderPool.maps[send_id])
-        return AsyncTCPSender(vm, map())
+        return AsyncTCPSender(vm, {})
         
     def start_bulk_send(self):
         send_id = uuid.uuid4()
-        AsyncTCPSenderPool.maps[send_id] = map()
+        AsyncTCPSenderPool.maps[send_id] = {}
         return send_id
 
     def loop(self, send_id):
         asyncore.loop(map=AsyncTCPSenderPool.maps[send_id])
-        AsyncTCPSenderPool.maps[send_id]
+        del AsyncTCPSenderPool.maps[send_id]
 
 
 class AsyncTCPSender(bambuk_rpc.BambukRpcSender):

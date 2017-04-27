@@ -29,6 +29,10 @@ def start_df(port_id, mac, host):
     if pid:
         subprocess.call(['kill', str(pid)])
     subprocess.Popen([
+        'df-db',
+        'clean'
+    ])
+    subprocess.Popen([
         'ovs-vsctl',
         'del-br',
         'br-int'

@@ -34,36 +34,24 @@ class BambukAgentClient(object):
         self._sender_pool = importutils.import_object(config.sender_pool())
 
     def state(self, server_conf, vm):
-        try:
-            return self._sender_pool.get_sender(vm).state(server_conf)
-        except Exception as ex:
-            LOG.error('an error occurs: %s', ex)
-            return None
+        LOG.debug('state to %s' % vm)
+        return self._sender_pool.get_sender(vm).state(server_conf)
 
     def apply(self, connect_db, vm):
-        try:
-            self._sender_pool.get_sender(vm).apply(connect_db)
-        except Exception as ex:
-            LOG.error('an error occurs: %s', ex)
+        self._sender_pool.get_sender(vm).apply(connect_db)
 
     def update(self, connect_db_update, vms):
         send_id = self._sender_pool.start_bulk_send()
         for vm in vms:
-            try:
-                self._sender_pool.get_sender(vm).update(
-                    connect_db_update, send_id)
-            except Exception as ex:
-                LOG.error('an error occurs: %s', ex)
+            self._sender_pool.get_sender(vm).update(
+                connect_db_update, send_id)
         self._sender_pool.loop(send_id)
 
     def delete(self, connect_db_delete, vms):
         send_id = self._sender_pool.start_bulk_send()
         for vm in vms:
-            try:
-                self._sender_pool.get_sender(vm).delete(
-                    connect_db_delete, send_id)
-            except Exception as ex:
-                LOG.error('an error occurs: %s', ex)
+            self._sender_pool.get_sender(vm).delete(
+                connect_db_delete, send_id)
         self._sender_pool.loop(send_id)
 
 

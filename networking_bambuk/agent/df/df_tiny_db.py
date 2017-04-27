@@ -11,8 +11,22 @@ from oslo_utils import importutils
 
 from tinydb import Query
 from tinydb import TinyDB
+import subprocess
 
 LOG = log.getLogger(__name__)
+
+
+def already_starded():
+    proc = subprocess.Popen(
+        ['lsof'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    stdout, _ = proc.communicate()
+    for l in stdout.split():
+        if config.json_db_cache() in l:
+            return True
+    return False
 
 
 class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
@@ -39,8 +53,9 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
         # open json file with tinyDb
         self._db = TinyDB(config.json_db_cache())
         # start the configured receiver
-        self._bambuk_receiver = importutils.import_object(
-            config.receiver(), bambuk_agent=self)
+        if not already_starded:
+            self._bambuk_receiver = importutils.import_object(
+                config.receiver(), bambuk_agent=self)
         # TODO(lionelz): check if server in DB and refresh the connectivity DB
         LOG.info("TinyDbDriver initialize - end")
 
