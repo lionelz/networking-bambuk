@@ -4,19 +4,20 @@
 enable_selective_topology_distribution = False
 pub_sub_use_multiproc = True
 enable_df_pub_sub = False
-apps_list = l2_app.L2App,l3_proactive_app.L3ProactiveApp,dhcp_app.DHCPApp,dnat_app.DNATApp,sg_app.SGApp,portsec_app.PortSecApp,portqos_app.PortQosApp,classifier_app.ClassifierApp,active_port_detection_app.ActivePortDetectionApp
+apps_list = l2_app.L2App,l3_proactive_app.L3ProactiveApp,dhcp_app.DHCPApp,dnat_app.DNATApp,sg_app.SGApp,portsec_app.PortSecApp,portqos_app.PortQosApp,classifier_app.ClassifierApp,tunneling_app.TunnelingApp,provider_networks_app.ProviderNetworksApp,active_port_detection_app.ActivePortDetectionApp
 integration_bridge = br-int
 tunnel_type = vxlan
-local_ip = ##data_ip##
-management_ip = ##mgnt_ip##
 enable_dpdk = False
 enable_port_status_notifier = False
 port_status_notifier =
 nb_db_class = bambuk_nb_db_driver
+local_ip = ##data_ip##
+management_ip = ##mgnt_ip##
 
+[df_dnat_app]
+ex_peer_patch_port = patch-int
+int_peer_patch_port = patch-ex
+external_network_bridge = br-ex
 
-
-
-
-
-
+[df_l2_app]
+l2_responder = True

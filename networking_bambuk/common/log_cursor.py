@@ -66,6 +66,7 @@ class LogCursor():
                 if not b_log:
                     LOG.debug('No more bambuk update log, %d processed' % n)
                     return
+            with ctx.session.begin():
                 n = n + 1
                 _action_touple = (b_log.obj_type, b_log.action_type)
                 _cls_action = update_actions.ACTIONS_CLASS.get(_action_touple)

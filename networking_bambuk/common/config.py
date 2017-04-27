@@ -21,10 +21,10 @@ from neutron.common import rpc
 
 bambuk_opts = [
     cfg.StrOpt('sender_pool',
-               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQSenderPool',
+               default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPSenderPool',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('receiver',
-               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQReceiver',
+               default='networking_bambuk.rpc.AsyncTCPSenderPool.AsyncTCPReceiver',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('json_db_cache',
                default='/tmp/connect_db.json',
@@ -33,7 +33,7 @@ bambuk_opts = [
                default='0.0.0.0',
                help=_('The ip to listen')),
     cfg.IntOpt('listener_port',
-               default=5555,
+               default=9999,
                help=_('The port to listen')),
     cfg.BoolOpt('l2_population', default=False,
                 help=_("Extension to use alongside ml2 plugin's l2population "
