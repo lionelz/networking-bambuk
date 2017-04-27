@@ -29,6 +29,20 @@ def start_df(port_id, mac, host):
     if pid:
         subprocess.call(['kill', str(pid)])
     subprocess.Popen([
+        'ovs-vsctl',
+        'del-br',
+        'br-int'
+    ])
+    subprocess.Popen([
+        'ovs-vsctl',
+        'add-br',
+        'br-int'
+    ])
+    subprocess.Popen([
+        'ovs-vsctl',
+        'del-manager'
+    ])
+    subprocess.Popen([
         '/usr/local/bin/df-local-controller',
         '--config-file', '/etc/neutron/neutron.conf',
         '--config-file', '/etc/neutron/dragonflow.ini',
