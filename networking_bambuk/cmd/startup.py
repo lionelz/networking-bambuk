@@ -53,8 +53,8 @@ def start_df(port_id, mac, host):
         '/usr/local/bin/df-local-controller',
         '--config-file', '/etc/neutron/neutron.conf',
         '--config-file', '/etc/neutron/dragonflow.ini',
-        '--log-file', '/var/log/dragonflow.log'
-    ])
+        '--log-file', '/var/log/dragonflow.log'], close_fds=True, shell=True
+    )
     plug_vif.plug_vif(port_id, mac, host)
 
 

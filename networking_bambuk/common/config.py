@@ -33,7 +33,7 @@ bambuk_opts = [
                default='0.0.0.0',
                help=_('The ip to listen')),
     cfg.IntOpt('listener_port',
-               default=1234,
+               default=5555,
                help=_('The port to listen')),
     cfg.BoolOpt('l2_population', default=False,
                 help=_("Extension to use alongside ml2 plugin's l2population "

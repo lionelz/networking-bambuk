@@ -25,7 +25,7 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
                 LOG.info('waiting for message')
                 message = self._socket.recv()
                 LOG.info('received %s' % message)
-                response = self.call_agent()
+                response = self.call_agent(message)
                 LOG.info('sending %s' % response)
                 self._socket.send(response)
                 LOG.info('%s sent' % response)
