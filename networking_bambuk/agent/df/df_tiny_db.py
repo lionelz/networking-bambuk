@@ -17,7 +17,7 @@ import os
 LOG = log.getLogger(__name__)
 
 
-def already_starded(f):
+def already_started(f):
     proc = subprocess.Popen(
         ['lsof'],
         stdout=subprocess.PIPE,
@@ -50,19 +50,20 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
         :type args:        dictionary of <string, object>
         :returns:          None
         """
-        LOG.info("TinyDbDriver initialize - begin")
+        LOG.info('TinyDbDriver initialize - begin')
         file_db = config.json_db_cache()
         if not os.path.exists(file_db) and file_db.split('.')[-1] != 'json':
             os.makedirs(file_db)
         if os.path.isdir(file_db):
             file_db = os.path.join(file_db, 'connect_db.json')
         # start the configured receiver
-        if not already_starded(file_db):
+        if not already_started(file_db):
+            LOG.info('TinyDbDriver initializing bambuk receiver')
             self._bambuk_receiver = importutils.import_object(
                 config.receiver(), bambuk_agent=self)
         # open json file with tinyDb
         self._db = TinyDB(file_db)
-        LOG.info("TinyDbDriver initialize - end")
+        LOG.info('TinyDbDriver initialize - end')
 
     def support_publish_subscribe(self):
         """Return if this DB support publish-subscribe.
