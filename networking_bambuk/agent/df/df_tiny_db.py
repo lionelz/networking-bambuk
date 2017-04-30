@@ -12,6 +12,7 @@ from oslo_utils import importutils
 from tinydb import Query
 from tinydb import TinyDB
 import subprocess
+import os
 
 LOG = log.getLogger(__name__)
 
@@ -50,8 +51,13 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
         :returns:          None
         """
         LOG.info("TinyDbDriver initialize - begin")
+        file_db = config.json_db_cache()
+        if not os.path.exists(file_db) and file_db.split('.')[-1] != 'json':
+            os.makedirs(file_db)
+        if os.path.isdir(file_db):
+            file_db = os.path.join(file_db, 'connect_db.json')
         # open json file with tinyDb
-        self._db = TinyDB(config.json_db_cache())
+        self._db = TinyDB(file_db)
         # start the configured receiver
         if not already_starded:
             self._bambuk_receiver = importutils.import_object(

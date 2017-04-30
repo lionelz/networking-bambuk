@@ -1,5 +1,6 @@
 import ConfigParser
 import json
+import md5
 import os
 import SocketServer
 import subprocess
@@ -7,6 +8,7 @@ from networking_bambuk.cmd import plug_vif
 
 
 CONFIG_FILE = '/etc/neutron/bambuk.ini'
+CONFIG_FILE_MD5 = '/etc/neutron/bambuk.ini.md5'
 
 
 def process_exist(words):
@@ -100,9 +102,19 @@ class StartupTCPHandler(SocketServer.StreamRequestHandler):
 
     def handle(self):
         config = Startup()
-        data = json.decoder.JSONDecoder().decode(self.rfile.readline().strip())
-        print('received %s from %s' % (data, self.client_address[0]))
-        config.apply(data)
+        cfg = self.rfile.readline().strip()
+        print('received %s from %s' % (cfg, self.client_address[0]))
+        new_md5 = md5.new(cfg).hexdigest()
+        old_md5 = None
+        # read current  md5
+        if os.path.exists(CONFIG_FILE_MD5):
+            with open(CONFIG_FILE_MD5, 'r') as cfgfile_md5:
+                old_md5 = cfgfile_md5.read()
+        if old_md5 != new_md5 or not process_exist(['df-local-controller']):
+            with open(CONFIG_FILE_MD5, 'w') as cfgfile_md5:
+                old_md5 = cfgfile_md5.write(new_md5)
+            data = json.decoder.JSONDecoder().decode(cfg)
+            config.apply(data)
         self.wfile.write("OK")
 
 
