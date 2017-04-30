@@ -26,8 +26,6 @@ def process_exist(words):
 
 
 def start_df(port_id, mac, host):
-    # TODO:
-    #  - clean-up ovs: remove br-int and br-ex, recreate it
     pid = process_exist(['df-local-controller'])
     if pid:
         subprocess.call(['kill', str(pid)])
@@ -53,7 +51,7 @@ def start_df(port_id, mac, host):
         '/usr/local/bin/df-local-controller',
         '--config-file', '/etc/neutron/neutron.conf',
         '--config-file', '/etc/neutron/dragonflow.ini',
-        '--log-file', '/var/log/dragonflow.log'], close_fds=True, shell=True
+        '--log-file', '/var/log/dragonflow.log']
     )
     plug_vif.plug_vif(port_id, mac, host)
 
