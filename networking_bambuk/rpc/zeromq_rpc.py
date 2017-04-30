@@ -56,10 +56,6 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         context = zmq.Context()
         self._socket = context.socket(zmq.REQ)
-        LOG.debug(self._socket)
-        LOG.debug(dir(self._socket))
-        LOG.debug(self._socket.__dict__)
-        LOG.debug(zmq.__dict__)
         self._socket.SNDTIMEO = 3000
         self._socket.RCVTIMEO = 5000
         self._socket.connect("tcp://%s:%d" % (host_or_ip, port))

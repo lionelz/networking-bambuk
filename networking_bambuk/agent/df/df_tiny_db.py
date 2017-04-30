@@ -56,12 +56,12 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             os.makedirs(file_db)
         if os.path.isdir(file_db):
             file_db = os.path.join(file_db, 'connect_db.json')
-        # open json file with tinyDb
-        self._db = TinyDB(file_db)
         # start the configured receiver
         if not already_starded(file_db):
             self._bambuk_receiver = importutils.import_object(
                 config.receiver(), bambuk_agent=self)
+        # open json file with tinyDb
+        self._db = TinyDB(file_db)
         LOG.info("TinyDbDriver initialize - end")
 
     def support_publish_subscribe(self):
