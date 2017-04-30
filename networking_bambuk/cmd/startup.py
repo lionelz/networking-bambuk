@@ -29,24 +29,22 @@ def start_df(port_id, mac, host):
     pid = process_exist(['df-local-controller'])
     if pid:
         subprocess.call(['kill', str(pid)])
-    subprocess.Popen([
-        'df-db',
-        'clean'
-    ])
-    subprocess.Popen([
-        'ovs-vsctl',
-        'del-br',
-        'br-int'
-    ])
-    subprocess.Popen([
-        'ovs-vsctl',
-        'del-manager'
-    ])
-    subprocess.Popen([
-        'ovs-vsctl',
-        'add-br',
-        'br-int'
-    ])
+
+    init_cmds = [
+        'df-db clean',
+        'ovs-vsctl del-br br-int',
+        'ovs-vsctl del-br br-ex',
+        'ovs-vsctl del-manager',
+        'ovs-vsctl add-br br-ex',
+        'ovs-vsctl add-br br-int',
+        'ovs-vsctl --no-wait set bridge br-int fail-mode=secure'
+        ' other-config:disable-in-band=true',
+        'ovs-vsctl set bridge br-int protocols=OpenFlow10,OpenFlow13',
+        'ovs-vsctl set-manager ptcp:6640:0.0.0.0',
+    ]
+    for c in init_cmds:
+        subprocess.Popen(c.split(' ')).wait()
+
     subprocess.Popen([
         '/usr/local/bin/df-local-controller',
         '--config-file', '/etc/neutron/neutron.conf',
