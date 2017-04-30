@@ -17,7 +17,7 @@ import os
 LOG = log.getLogger(__name__)
 
 
-def already_starded():
+def already_starded(f):
     proc = subprocess.Popen(
         ['lsof'],
         stdout=subprocess.PIPE,
@@ -25,7 +25,7 @@ def already_starded():
     )
     stdout, _ = proc.communicate()
     for l in stdout.split():
-        if config.json_db_cache() in l:
+        if f in l:
             return True
     return False
 
@@ -59,10 +59,9 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
         # open json file with tinyDb
         self._db = TinyDB(file_db)
         # start the configured receiver
-        if not already_starded:
+        if not already_starded(file_db):
             self._bambuk_receiver = importutils.import_object(
                 config.receiver(), bambuk_agent=self)
-        # TODO(lionelz): check if server in DB and refresh the connectivity DB
         LOG.info("TinyDbDriver initialize - end")
 
     def support_publish_subscribe(self):
