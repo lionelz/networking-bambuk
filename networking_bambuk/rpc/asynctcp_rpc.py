@@ -77,9 +77,10 @@ class AsyncTCPReceiver(bambuk_rpc.BambukRpcReceiver):
         super(AsyncTCPReceiver, self).__init__(bambuk_agent)
 
     def receive(self):
-        m = {}
-        _ = TCPServer((self._ip, self._port), self, m)
-        asyncore.loop(map=m)
+        while self._running:
+            m = {}
+            _ = TCPServer((self._ip, self._port), self, m)
+            asyncore.loop(map=m)
 
 
 class TCPClient(asyncore.dispatcher):
