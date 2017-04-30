@@ -19,13 +19,16 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
         context = zmq.Context()
         self._socket = context.socket(zmq.REP)
         self._socket.bind("tcp://%s:%d" % (self._ip, self._port))
-        self._socket.SNDTIMEO = 3000
-        self._socket.RCVTIMEO = 5000
         while self._running:
             #  Wait for next request from client
             try:
-                response = self.call_agent(self._socket.recv())
+                LOG.info('waiting for message')
+                message = self._socket.recv()
+                LOG.info('received %s' % message)
+                response = self.call_agent()
+                LOG.info('sending %s' % response)
                 self._socket.send(response)
+                LOG.info('%s sent' % response)
             except error.Again:
                 pass
 
@@ -56,10 +59,8 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         context = zmq.Context()
         self._socket = context.socket(zmq.REQ)
-        self._socket.SNDTIMEO = 3000
-        self._socket.RCVTIMEO = 5000
         self._socket.connect("tcp://%s:%d" % (host_or_ip, port))
 
     def send(self, message, send_id=None):
-        self._socket.send(message, zmq.NOBLOCK)
+        self._socket.send(message)
         return self._socket.recv()
