@@ -4,6 +4,8 @@ import md5
 import os
 import SocketServer
 import subprocess
+import time
+
 from networking_bambuk.cmd import plug_vif
 
 
@@ -41,13 +43,14 @@ def start_df(port_id, mac, host):
     ])
     subprocess.Popen([
         'ovs-vsctl',
-        'add-br',
-        'br-int'
+        'del-manager'
     ])
     subprocess.Popen([
         'ovs-vsctl',
-        'del-manager'
+        'add-br',
+        'br-int'
     ])
+    time.sleep(1)
     subprocess.Popen([
         '/usr/local/bin/df-local-controller',
         '--config-file', '/etc/neutron/neutron.conf',
