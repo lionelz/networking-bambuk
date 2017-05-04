@@ -35,15 +35,8 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
 
 class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
-    senders = {}
-
     def get_sender(self, vm):
-        key = "tcp://%s:%d" % (vm, config.listener_port())
-        sender = ZeroMQSenderPool.senders.get(key)
-        if not sender:
-            sender = ZeroMQSender(vm, config.listener_port())
-            ZeroMQSenderPool.senders[key] = sender
-        return sender
+        return ZeroMQSender(vm, config.listener_port())
 
     def start_bulk_send(self):
         return 1

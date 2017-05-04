@@ -36,6 +36,7 @@ def start_df(port_id, mac, host, clean_db):
         subprocess.Popen('df-db clean'.split(' ')).wait()
 
     init_cmds = [
+        'modprobe nf_conntrack_ipv4',
         'ovs-vsctl del-br br-int',
         'ovs-vsctl del-br br-ex',
         'ovs-vsctl del-manager',
