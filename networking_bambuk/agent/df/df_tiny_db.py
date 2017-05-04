@@ -19,7 +19,7 @@ LOG = log.getLogger(__name__)
 
 def already_started(f):
     proc = subprocess.Popen(
-        ['lsof'],
+        ['sudo', 'lsof'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )

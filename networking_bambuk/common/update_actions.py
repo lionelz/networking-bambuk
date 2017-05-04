@@ -462,7 +462,7 @@ class SecurityGroupUpdateAction(Action):
         self._bambuk_client.update({
                 'table': 'secgroup',
                 'key': sg['id'],
-                'value': jsonutils.dumps(sg)
+                'value': jsonutils.dumps(port_infos.lsecgroup(sg))
         }, vms)
 
 

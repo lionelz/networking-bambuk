@@ -72,7 +72,7 @@ def plug_vif(iface_id, mac, instance_id):
     execute('ip', 'link', 'set', tap, 'netns', 'vm')
     execute('ip', 'netns', 'exec', 'vm', 'ip', 'link', 'set', tap, 'up')
     execute('ip', 'netns', 'exec', 'vm', 'ip', 'link', 'set', 'lo', 'up')
-    execute('ip', 'netns', 'exec', 'dhclient', '-4', tap)
+    execute('ip', 'netns', 'exec', 'vm', 'dhclient', '-4', tap)
 
 
 def main():

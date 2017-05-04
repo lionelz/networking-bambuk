@@ -73,9 +73,12 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
             return query.one()
 
     def create_security_group_rule(self, resource, event, trigger, **kwargs):
-        sg_rule_id = kwargs['security_group_rule_id']
+        security_group_rule = kwargs['security_group_rule']
+        sg = {
+            'id': security_group_rule['security_group_id'],
+            'tenant_id': security_group_rule['tenant_id'],
+        }
         context = kwargs['context']
-        sg = self._get_sg(context, sg_rule_id)
         create_update_log.create_bambuk_update_log(
             context,
             sg,

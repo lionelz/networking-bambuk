@@ -26,6 +26,118 @@ from oslo_serialization import jsonutils
 LOG = o_log.getLogger(__name__)
 
 
+def lport(port):
+    ips = [ip['ip_address'] for ip in port.get('fixed_ips', [])]
+    subnets = [ip['subnet_id'] for ip in port.get('fixed_ips', [])]
+    chassis = port.get('binding:host_id', None)
+    lport = {}
+    lport['id'] = port['id']
+    lport['topic'] = port['tenant_id']
+    lport['remote_vtep'] = False
+    lport['lswitch'] = port['network_id']
+    lport['macs'] = [port['mac_address']]
+    lport['ips'] = ips
+    lport['name'] = port.get('name', 'no_port_name')
+    lport['enabled'] = port.get('admin_state_up', None)
+    lport['chassis'] = chassis
+    lport['unique_key'] = port['standard_attr_id']
+    lport['device_owner'] = port.get('device_owner', None)
+    lport['device_id'] = port.get('device_id', None)
+    lport['security_groups'] = port.get('security_groups', None)
+    lport['port_security_enabled'] = port.get(psec.PORTSECURITY, False)
+    lport['allowed_address_pairs'] = (
+        port.get(addr_pair.ADDRESS_PAIRS, None))
+
+    lport['subnets'] = subnets
+    lport['binding_profile'] = port.get('binding:profile')
+    lport['extra_dhcp_opts'] = port.get('extra_dhcp_opts')
+    lport['device_owner'] = port.get('device_owner')
+    lport['device_id'] = port.get('device_id')
+    lport['version'] = 1
+    lport['qos_policy_id'] = None
+    lport['binding_vnic_type'] = port.get('binding:vnic_type')
+  
+    return lport
+
+
+def lsecgroup(sg):
+    secgroup = {}
+    secgroup['id'] = sg['id']
+    secgroup['topic'] = sg['tenant_id']
+    secgroup['name'] = sg.get('name', 'no_sg_name')
+    secgroup['rules'] = []
+    secgroup['version'] = 1
+    for sgr in sg['security_group_rules']:
+        secgroupr = {}
+        for k in ['id', 'direction', 'protocol', 'port_range_max',
+                  'remote_group_id', 'remote_ip_prefix',
+                  'security_group_id', 'port_range_min', 'ethertype']:
+            secgroupr[k] = sgr[k]
+        secgroupr['topic'] = sg['tenant_id']
+        secgroupr['version'] = 1
+        secgroupr['version'] = 1
+        secgroup['rules'].append(secgroupr)
+    secgroup['unique_key'] = sg['standard_attr_id']
+    return secgroup
+
+
+def lsubnet(subnet):
+    lsubnet = {}
+    lsubnet['id'] = subnet['id']
+    lsubnet['topic'] = subnet['tenant_id']
+    lsubnet['name'] = subnet.get('name', 'no_subnet_name')
+    lsubnet['enable_dhcp'] = subnet['enable_dhcp']
+    lsubnet['cidr'] = subnet['cidr']
+    lsubnet['dhcp_ip'] = subnet['allocation_pools'][0]['start']
+    lsubnet['gateway_ip'] = subnet['gateway_ip']
+    lsubnet['dns_nameservers'] = subnet.get('dns_nameservers', [])
+    lsubnet['host_routes'] = subnet.get('host_routes', [])
+    return lsubnet
+
+def lswitch(network, subnets):
+    lswitch = {}
+    lswitch['id'] = network['id']
+    lswitch['topic'] = network['tenant_id']
+    lswitch['name'] = network.get('name', 'no_network_name')
+    lswitch['network_type'] = network.get('provider:network_type')
+    lswitch['segmentation_id'] = network.get('provider:segmentation_id')
+    lswitch['is_external'] = network['router:external']
+    lswitch['mtu'] = network.get('mtu')
+    lswitch['subnets'] = [lsubnet(subnet) for subnet in subnets]
+    lswitch['unique_key'] = network['standard_attr_id']
+    lswitch['version'] = 1
+    return lswitch
+
+def lrouter_port(router_port, subnets, subnet):
+    port = {}
+    if subnet:
+        cidr = netaddr.IPNetwork(subnet['cidr'])
+        network = "%s/%s" % (router_port['fixed_ips'][0]['ip_address'],
+                             str(cidr.prefixlen))
+        port['network'] = network
+    port['topic'] = router_port['tenant_id']
+    port['id'] = router_port['id']
+    port['lswitch'] = router_port['network_id']
+    port['mac'] = router_port['mac_address']
+    port['unique_key'] = router_port['standard_attr_id']
+    return port
+
+def lrouter(router, router_ports, subnets, subnet):
+    if not router:
+        return None
+    lrouter = {}
+    lrouter['id'] = router['id']
+    lrouter['topic'] = router['tenant_id']
+    lrouter['name'] = router['name']
+    lrouter['unique_key'] = router['standard_attr_id']
+    lrouter['ports'] = (
+        [lrouter_port(port, subnets, subnet) for port in router_ports]
+    )
+    lrouter['version'] = 1
+    return lrouter
+
+
+
 class BambukPortInfo(object):
     """Port info object, used to construct the messages to the clients."""
 
@@ -45,6 +157,13 @@ class BambukPortInfo(object):
             self._plugin_property = manager.NeutronManager.get_plugin()
         return self._plugin_property
 
+    def _get_subnet(self, subnets, subnet_id):
+        if subnet_id not in subnets:
+            # Try to read the network if it is not in the cache
+            ctx = n_context.get_admin_context()
+            subnets[subnet_id] = self._plugin.get_subnet(ctx, subnet_id)
+        return subnets[subnet_id]
+
     def _get_lswitch(self, ctx, port, subnets):
         """Create a lswitch object for a given port."""
         network = self._plugin.get_network(ctx, port['network_id'])
@@ -53,7 +172,7 @@ class BambukPortInfo(object):
             filters={'network_id': [port['network_id']]})
         for subnet in _subnets:
             subnets[subnet['id']] = subnet
-        return self._lswitch(network, _subnets), network
+        return lswitch(network, _subnets), network
 
     # TODO(lionelz): As the segmentation ID code is commented out,
     #                can we remove this and use the _get_lswitch instead?
@@ -84,17 +203,21 @@ class BambukPortInfo(object):
 
         # port
         if self._port:
-            self.lport = self._lport(self._port)
+            self.lport = lport(self._port)
         else:
             self.lport = None
 
         # router
-        self.lrouter = self._lrouter(self._router, self._router_ports, subnets)
+        f_ips = self._router_ports.get('fixed_ips', [])
+        subnet_id = f_ips[0]['subnet_id']
+        subnet = self._get_subnet(subnets, subnet_id)
+        self.lrouter = lrouter(
+            self._router, self._router_ports, subnets, subnet)
 
         # other ports
         self.other_lports = []
         for port in self._other_ports:
-            self.other_lports.append(self._lport(port))
+            self.other_lports.append(lport(port))
 
         # security groups
         self.secgroup = []
@@ -102,7 +225,7 @@ class BambukPortInfo(object):
             sgs = self._plugin.get_security_groups(
                 ctx, {'id': self.lport['security_groups']})
             for sg in sgs:
-                self.secgroup.append(self._secgroup(sg))
+                self.secgroup.append(lsecgroup(sg))
 
         # list of chassis
         self.chassis = []
@@ -202,122 +325,3 @@ class BambukPortInfo(object):
         self.lrouter_db(port_connect_db)
 
         return port_connect_db
-
-    def _lport(self, port):
-        ips = [ip['ip_address'] for ip in port.get('fixed_ips', [])]
-        subnets = [ip['subnet_id'] for ip in port.get('fixed_ips', [])]
-        chassis = port.get('binding:host_id', None)
-        lport = {}
-        lport['id'] = port['id']
-        lport['topic'] = port['tenant_id']
-        lport['remote_vtep'] = False
-        lport['lswitch'] = port['network_id']
-        lport['macs'] = [port['mac_address']]
-        lport['ips'] = ips
-        lport['name'] = port.get('name', 'no_port_name')
-        lport['enabled'] = port.get('admin_state_up', None)
-        lport['chassis'] = chassis
-        lport['unique_key'] = port['standard_attr_id']
-        lport['device_owner'] = port.get('device_owner', None)
-        lport['device_id'] = port.get('device_id', None)
-        lport['security_groups'] = port.get('security_groups', None)
-        lport['port_security_enabled'] = port.get(psec.PORTSECURITY, False)
-        lport['allowed_address_pairs'] = (
-            port.get(addr_pair.ADDRESS_PAIRS, None))
-
-        lport['subnets'] = subnets
-        lport['binding_profile'] = port.get('binding:profile')
-        lport['extra_dhcp_opts'] = port.get('extra_dhcp_opts')
-        lport['device_owner'] = port.get('device_owner')
-        lport['device_id'] = port.get('device_id')
-        lport['version'] = 1
-        lport['qos_policy_id'] = None
-        lport['binding_vnic_type'] = port.get('binding:vnic_type')
-      
-        return lport
-
-    def _secgroup(self, sg):
-        secgroup = {}
-        secgroup['id'] = sg['id']
-        secgroup['topic'] = sg['tenant_id']
-        secgroup['name'] = sg.get('name', 'no_sg_name')
-        secgroup['rules'] = []
-        secgroup['version'] = 1
-        for sgr in sg['security_group_rules']:
-            secgroupr = {}
-            for k in ['id', 'direction', 'protocol', 'port_range_max',
-                      'remote_group_id', 'remote_ip_prefix',
-                      'security_group_id', 'port_range_min', 'ethertype']:
-                secgroupr[k] = sgr[k]
-            secgroupr['topic'] = sg['tenant_id']
-            secgroupr['version'] = 1
-            secgroupr['version'] = 1
-            secgroup['rules'].append(secgroupr)
-        secgroup['unique_key'] = sg['standard_attr_id']
-        return secgroup
-
-
-    def _subnet(self, subnet):
-        lsubnet = {}
-        lsubnet['id'] = subnet['id']
-        lsubnet['topic'] = subnet['tenant_id']
-        lsubnet['name'] = subnet.get('name', 'no_subnet_name')
-        lsubnet['enable_dhcp'] = subnet['enable_dhcp']
-        lsubnet['cidr'] = subnet['cidr']
-        lsubnet['dhcp_ip'] = subnet['allocation_pools'][0]['start']
-        lsubnet['gateway_ip'] = subnet['gateway_ip']
-        lsubnet['dns_nameservers'] = subnet.get('dns_nameservers', [])
-        lsubnet['host_routes'] = subnet.get('host_routes', [])
-        return lsubnet
-
-    def _lswitch(self, network, subnets):
-        lswitch = {}
-        lswitch['id'] = network['id']
-        lswitch['topic'] = network['tenant_id']
-        lswitch['name'] = network.get('name', 'no_network_name')
-        lswitch['network_type'] = network.get('provider:network_type')
-        lswitch['segmentation_id'] = network.get('provider:segmentation_id')
-        lswitch['is_external'] = network['router:external']
-        lswitch['mtu'] = network.get('mtu')
-        lswitch['subnets'] = [self._subnet(subnet) for subnet in subnets]
-        lswitch['unique_key'] = network['standard_attr_id']
-        lswitch['version'] = 1
-        return lswitch
-
-    def _get_subnet(self, subnets, subnet_id):
-        if subnet_id not in subnets:
-            # Try to read the network if it is not in the cache
-            ctx = n_context.get_admin_context()
-            subnets[subnet_id] = self._plugin.get_subnet(ctx, subnet_id)
-        return subnets[subnet_id]
-
-    def _lrouter_port(self, router_port, subnets):
-        port = {}
-        f_ips = router_port.get('fixed_ips', [])
-        subnet_id = f_ips[0]['subnet_id']
-        subnet = self._get_subnet(subnets, subnet_id)
-        if subnet:
-            cidr = netaddr.IPNetwork(subnet['cidr'])
-            network = "%s/%s" % (router_port['fixed_ips'][0]['ip_address'],
-                                 str(cidr.prefixlen))
-            port['network'] = network
-        port['topic'] = router_port['tenant_id']
-        port['id'] = router_port['id']
-        port['lswitch'] = router_port['network_id']
-        port['mac'] = router_port['mac_address']
-        port['unique_key'] = router_port['standard_attr_id']
-        return port
-
-    def _lrouter(self, router, router_ports, subnets):
-        if not router:
-            return None
-        lrouter = {}
-        lrouter['id'] = router['id']
-        lrouter['topic'] = router['tenant_id']
-        lrouter['name'] = router['name']
-        lrouter['unique_key'] = router['standard_attr_id']
-        lrouter['ports'] = (
-            [self._lrouter_port(port, subnets) for port in router_ports]
-        )
-        lrouter['version'] = 1
-        return lrouter
