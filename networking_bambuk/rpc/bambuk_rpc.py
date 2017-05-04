@@ -2,6 +2,7 @@ import abc
 import eventlet
 import json
 import six
+import traceback
 
 from eventlet.green import time
 from networking_bambuk.common import config
@@ -151,7 +152,18 @@ class BambukRpcSender(BambukRpc):
             message[name] = value
         message_json = json.dumps(message)
         LOG.debug("Sending message: %s" % message_json)
-        response_json = self.send(message_json, send_id)
+        nr = 0
+        sent = False
+        while (not sent):
+            try:
+                response_json = self.send(message_json, send_id)
+                sent = True
+            except Exception as e:
+                LOG.error(traceback.format_exc())
+                time.sleep(1)
+                nr = nr + 1
+                if nr == 9:
+                    raise e
         LOG.debug("Received response: %s" % response_json)
         if not send_id:
             return json.loads(response_json)

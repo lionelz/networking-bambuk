@@ -58,7 +58,6 @@ def create_ovs_vif_port(bridge, dev, iface_id, mac, instance_id):
 
 def plug_vif(iface_id, mac, instance_id):
     tap = get_tap_name(iface_id)
-    ovs_vsctl(['del-port', 'br-int', tap])
     create_ovs_vif_port('br-int',
                         tap,
                         iface_id,
@@ -72,7 +71,7 @@ def plug_vif(iface_id, mac, instance_id):
     execute('ip', 'link', 'set', tap, 'netns', 'vm')
     execute('ip', 'netns', 'exec', 'vm', 'ip', 'link', 'set', tap, 'up')
     execute('ip', 'netns', 'exec', 'vm', 'ip', 'link', 'set', 'lo', 'up')
-    execute('ip', 'netns', 'exec', 'vm', 'dhclient', '-4', tap)
+    return tap
 
 
 def main():

@@ -2,6 +2,7 @@ import json
 import socket
 import sys
 import time
+import traceback
 
 from networking_bambuk.db.bambuk import bambuk_db
 from networking_bambuk.db.bambuk import create_update_log
@@ -30,7 +31,8 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
     def _send(self, host, port, data):
         retry = 0
         data = json.encoder.JSONEncoder().encode((data))
-        while True:
+        received = None
+        while not received:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 LOG.debug('%d: try to send to %s:%s (%s)' % (
@@ -38,13 +40,14 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 sock.connect((host, port))
                 sock.sendall(data + "\n.\n")
                 received = sock.recv(1024)
-                if received == 'OK' or retry == 20:
-                    break;
-            except:
+            except Exception as e:
+                LOG.error(traceback.format_exc())
                 LOG.error('%s' % sys.exc_info()[0])
-                time.sleep(5)
-            finally:
+                time.sleep(1)
+                if retry == 9:
+                    raise e
                 retry = retry + 1
+            finally:
                 sock.close()
 
     def _get_vm_conf(self,

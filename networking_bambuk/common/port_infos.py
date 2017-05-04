@@ -108,35 +108,6 @@ def lswitch(network, subnets):
     lswitch['version'] = 1
     return lswitch
 
-def lrouter_port(router_port, subnets, subnet):
-    port = {}
-    if subnet:
-        cidr = netaddr.IPNetwork(subnet['cidr'])
-        network = "%s/%s" % (router_port['fixed_ips'][0]['ip_address'],
-                             str(cidr.prefixlen))
-        port['network'] = network
-    port['topic'] = router_port['tenant_id']
-    port['id'] = router_port['id']
-    port['lswitch'] = router_port['network_id']
-    port['mac'] = router_port['mac_address']
-    port['unique_key'] = router_port['standard_attr_id']
-    return port
-
-def lrouter(router, router_ports, subnets, subnet):
-    if not router:
-        return None
-    lrouter = {}
-    lrouter['id'] = router['id']
-    lrouter['topic'] = router['tenant_id']
-    lrouter['name'] = router['name']
-    lrouter['unique_key'] = router['standard_attr_id']
-    lrouter['ports'] = (
-        [lrouter_port(port, subnets, subnet) for port in router_ports]
-    )
-    lrouter['version'] = 1
-    return lrouter
-
-
 
 class BambukPortInfo(object):
     """Port info object, used to construct the messages to the clients."""
@@ -208,11 +179,8 @@ class BambukPortInfo(object):
             self.lport = None
 
         # router
-        f_ips = self._router_ports.get('fixed_ips', [])
-        subnet_id = f_ips[0]['subnet_id']
-        subnet = self._get_subnet(subnets, subnet_id)
-        self.lrouter = lrouter(
-            self._router, self._router_ports, subnets, subnet)
+        self.lrouter = self._lrouter(
+            self._router, self._router_ports, subnets)
 
         # other ports
         self.other_lports = []
@@ -325,3 +293,34 @@ class BambukPortInfo(object):
         self.lrouter_db(port_connect_db)
 
         return port_connect_db
+
+    def _lrouter_port(self, router_port, subnets):
+        port = {}
+        f_ips = router_port.get('fixed_ips', [])
+        subnet_id = f_ips[0]['subnet_id']
+        subnet = self._get_subnet(subnets, subnet_id)
+        if subnet:
+            cidr = netaddr.IPNetwork(subnet['cidr'])
+            network = "%s/%s" % (router_port['fixed_ips'][0]['ip_address'],
+                                 str(cidr.prefixlen))
+            port['network'] = network
+        port['topic'] = router_port['tenant_id']
+        port['id'] = router_port['id']
+        port['lswitch'] = router_port['network_id']
+        port['mac'] = router_port['mac_address']
+        port['unique_key'] = router_port['standard_attr_id']
+        return port
+
+    def _lrouter(self, router, router_ports, subnets):
+        if not router:
+            return None
+        lrouter = {}
+        lrouter['id'] = router['id']
+        lrouter['topic'] = router['tenant_id']
+        lrouter['name'] = router['name']
+        lrouter['unique_key'] = router['standard_attr_id']
+        lrouter['ports'] = (
+            [self._lrouter_port(port, subnets) for port in router_ports]
+        )
+        lrouter['version'] = 1
+        return lrouter

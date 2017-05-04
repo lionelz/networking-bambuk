@@ -4,6 +4,7 @@ import md5
 import os
 import SocketServer
 import subprocess
+import threading
 import time
 
 from networking_bambuk.cmd import plug_vif
@@ -26,13 +27,15 @@ def process_exist(words):
     return False
 
 
-def start_df(port_id, mac, host):
+def start_df(port_id, mac, host, clean_db):
     pid = process_exist(['df-local-controller'])
     if pid:
         subprocess.call(['kill', str(pid)])
 
+    if clean_db:
+        subprocess.Popen('df-db clean'.split(' ')).wait()
+
     init_cmds = [
-        'df-db clean',
         'ovs-vsctl del-br br-int',
         'ovs-vsctl del-br br-ex',
         'ovs-vsctl del-manager',
@@ -52,8 +55,13 @@ def start_df(port_id, mac, host):
         '--config-file', '/etc/neutron/dragonflow.ini',
         '--log-file', '/var/log/dragonflow.log']
     )
-    plug_vif.plug_vif(port_id, mac, host)
+    tap = plug_vif.plug_vif(port_id, mac, host)
     time.sleep(10)
+    subprocess.Popen(
+        'ip', 'netns', 'exec', 'vm', 'dhclient', '-nw', '-v',
+        '-pf', '/run/dhclient.%s.pid' % tap,
+        '-lf', '/var/lib/dhcp/dhclient.%s.leases' % tap, tap
+    )
 
 
 class Startup(object):
@@ -94,7 +102,7 @@ class Startup(object):
         if 'host' in params:
             subprocess.call(['hostname', params['host']]) 
             self._write_file('/etc/hostname', params['host'])
-        start_df(params['port_id'], params['mac'], params['host'])
+        start_df(params['port_id'], params['mac'], params['host'], True)
 
 
 class StartupTCPHandler(SocketServer.StreamRequestHandler):
@@ -121,20 +129,24 @@ def main():
     HOST = '0.0.0.0'
     PORT = 8080
 
+    SocketServer.TCPServer.allow_reuse_address = True
+    server = SocketServer.TCPServer((HOST, PORT), StartupTCPHandler)
+    print('Started config tcp server on %s:%s ' % (HOST, PORT))
+
+
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.start()
+    time.sleep(1)
+
     if os.path.exists(CONFIG_FILE):
         c = ConfigParser.ConfigParser()
         c.read(CONFIG_FILE)
         start_df(
             c.get('bambuk', 'port_id'),
             c.get('bambuk', 'mac'),
-            c.get('bambuk', 'host')
+            c.get('bambuk', 'host'),
+            False
         )
-
-    SocketServer.TCPServer.allow_reuse_address = True
-    server = SocketServer.TCPServer((HOST, PORT), StartupTCPHandler)
-    print('Started config tcp server on %s:%s ' % (HOST, PORT))
-
-    server.serve_forever()
 
 
 if __name__ == "__main__":
