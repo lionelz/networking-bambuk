@@ -58,9 +58,9 @@ def start_df(port_id, mac, host, clean_db):
     tap = plug_vif.plug_vif(port_id, mac, host)
     time.sleep(10)
     subprocess.Popen(
-        'ip', 'netns', 'exec', 'vm', 'dhclient', '-nw', '-v',
+        ['ip', 'netns', 'exec', 'vm', 'dhclient', '-nw', '-v',
         '-pf', '/run/dhclient.%s.pid' % tap,
-        '-lf', '/var/lib/dhcp/dhclient.%s.leases' % tap, tap
+        '-lf', '/var/lib/dhcp/dhclient.%s.leases' % tap, tap]
     )
 
 
