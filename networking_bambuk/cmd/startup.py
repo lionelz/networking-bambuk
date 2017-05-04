@@ -4,6 +4,7 @@ import md5
 import os
 import SocketServer
 import subprocess
+import time
 
 from networking_bambuk.cmd import plug_vif
 
@@ -52,6 +53,7 @@ def start_df(port_id, mac, host):
         '--log-file', '/var/log/dragonflow.log']
     )
     plug_vif.plug_vif(port_id, mac, host)
+    time.sleep(10)
 
 
 class Startup(object):

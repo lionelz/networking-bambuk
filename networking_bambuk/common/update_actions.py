@@ -153,7 +153,7 @@ class Action(object):
             provider_port = self._bambuk_plugin.get_providerport(
                 ctx, port['id'])
             provider_port['host_id'] = port.get(
-                'binding:host_id', provider_port.get('name'))
+                'binding:host_id', None)
             return provider_port
 
     def _get_endpoints(self, ctx, ports, port=None):

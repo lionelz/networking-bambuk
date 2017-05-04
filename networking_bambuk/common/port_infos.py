@@ -209,7 +209,7 @@ class BambukPortInfo(object):
         chassis = port.get('binding:host_id', None)
         lport = {}
         lport['id'] = port['id']
-        lport['topic'] = None
+        lport['topic'] = port['tenant_id']
         lport['remote_vtep'] = False
         lport['lswitch'] = port['network_id']
         lport['macs'] = [port['mac_address']]
@@ -241,9 +241,21 @@ class BambukPortInfo(object):
         secgroup['id'] = sg['id']
         secgroup['topic'] = sg['tenant_id']
         secgroup['name'] = sg.get('name', 'no_sg_name')
-        secgroup['rules'] = sg['security_group_rules']
+        secgroup['rules'] = []
+        secgroup['version'] = 1
+        for sgr in sg['security_group_rules']:
+            secgroupr = {}
+            for k in ['id', 'direction', 'protocol', 'port_range_max',
+                      'remote_group_id', 'remote_ip_prefix',
+                      'security_group_id', 'port_range_min', 'ethertype']:
+                secgroupr[k] = sgr[k]
+            secgroupr['topic'] = sg['tenant_id']
+            secgroupr['version'] = 1
+            secgroupr['version'] = 1
+            secgroup['rules'].append(secgroupr)
         secgroup['unique_key'] = sg['standard_attr_id']
         return secgroup
+
 
     def _subnet(self, subnet):
         lsubnet = {}
@@ -269,6 +281,7 @@ class BambukPortInfo(object):
         lswitch['mtu'] = network.get('mtu')
         lswitch['subnets'] = [self._subnet(subnet) for subnet in subnets]
         lswitch['unique_key'] = network['standard_attr_id']
+        lswitch['version'] = 1
         return lswitch
 
     def _get_subnet(self, subnets, subnet_id):
@@ -303,6 +316,8 @@ class BambukPortInfo(object):
         lrouter['topic'] = router['tenant_id']
         lrouter['name'] = router['name']
         lrouter['unique_key'] = router['standard_attr_id']
-        lrouter['ports'] = \
+        lrouter['ports'] = (
             [self._lrouter_port(port, subnets) for port in router_ports]
+        )
+        lrouter['version'] = 1
         return lrouter

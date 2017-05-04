@@ -57,6 +57,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
         if os.path.isdir(file_db):
             file_db = os.path.join(file_db, 'connect_db.json')
         # start the configured receiver
+        LOG.info('TinyDbDriver json file: %s' % file_db)
         if not already_started(file_db):
             LOG.info('TinyDbDriver initializing bambuk receiver')
             self._bambuk_receiver = importutils.import_object(
