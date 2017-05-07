@@ -99,6 +99,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         port_id = p_port.get('port_id')
         
         neutron_port = self._get_neutron_port(context, port_id)
+        LOG.debug('neutron_port %s' % neutron_port)
 
         tenant_id = neutron_port['tenant_id']
 
@@ -150,9 +151,11 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
 
         pp_db = self._get_by_id(
             context, bambuk_db.ProviderPort, providerport_id)
+        LOG.debug('pp_db %s' % pp_db)
 
         neutron_port = self._get_neutron_port(context, pp_db.port_id)
 
+        LOG.debug('neutron_port %s' % neutron_port)
         pp = providerport['providerport']
         with context.session.begin(subtransactions=True):
             pp_db.update(pp)
@@ -195,7 +198,12 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 providerport_id=providerport_id)
 
         # neutron port
-        neutron_port = self._get_neutron_port(context, pp_db.port_id)
+        try:
+            neutron_port = self._get_neutron_port(context, pp_db.port_id)
+        except:
+            neutron_port = None
+        if not neutron_port:
+            LOG.warn('no neutron port for %s.' % pp_db.port_id)
 
         return self._make_providerport_dict(pp_db, neutron_port)
 
@@ -221,6 +229,11 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         res = []
         # add neutron and provider info
         for pp_db in pps_db:
-            neutron_port = self._get_neutron_port(context, pp_db.port_id)
+            try:
+                neutron_port = self._get_neutron_port(context, pp_db.port_id)
+            except:
+                neutron_port = None
+            if not neutron_port:
+                LOG.warn('no neutron port for %s.' % pp_db.port_id)
             res.append(self._make_providerport_dict(pp_db, neutron_port))
         return res

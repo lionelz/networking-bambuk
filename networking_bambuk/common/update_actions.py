@@ -395,8 +395,9 @@ class PortUpdateAction(Action):
             if len(routers) > 0:
                 # We support only one router per network at the moment
                 router = routers[0]
-                networks, router_ports = \
+                networks, router_ports = (
                     self._get_ports_from_router(ctx, router)
+                )
 
         networks.append(network_id)
         # Remove duplicates

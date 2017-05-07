@@ -185,7 +185,8 @@ class BambukPortInfo(object):
         # other ports
         self.other_lports = []
         for port in self._other_ports:
-            self.other_lports.append(lport(port))
+            if port.get('device_owner').startswith('nova:'):
+                self.other_lports.append(lport(port))
 
         # security groups
         self.secgroup = []
