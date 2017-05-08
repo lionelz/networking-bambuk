@@ -178,27 +178,26 @@ class Action(object):
             if port and port['id'] == _port['id']:
                 # This is our port
                 port_db = _port
-            else:
-                provider_port = self._get_provider_port(ctx, _port)
-                if provider_port:
-                    tunnel = {
-                        'ip_address': provider_port['provider_ip'],
-                        'host': provider_port['host_id'],
-                        'udp_port': p_const.VXLAN_UDP_PORT,
-                    }
-                    # TODO(lionelz): support other types from port data profile
-                    tunnel_type = 'vxlan'
-                    tunnels = None
-                    for endpoint in endpoints:  # type: dict
-                        if endpoint['tunnel_type'] == tunnel_type:
-                            tunnels = endpoint['tunnels']
-                    if tunnels:
-                        tunnels.append(tunnel)
-                    else:
-                        endpoints.append({
-                            'tunnels': [tunnel],
-                            'tunnel_type': tunnel_type
-                        })
+            provider_port = self._get_provider_port(ctx, _port)
+            if provider_port:
+                tunnel = {
+                    'ip_address': provider_port['provider_ip'],
+                    'host': provider_port['host_id'],
+                    'udp_port': p_const.VXLAN_UDP_PORT,
+                }
+                # TODO(lionelz): support other types from port data profile
+                tunnel_type = 'vxlan'
+                tunnels = None
+                for endpoint in endpoints:  # type: dict
+                    if endpoint['tunnel_type'] == tunnel_type:
+                        tunnels = endpoint['tunnels']
+                if tunnels:
+                    tunnels.append(tunnel)
+                else:
+                    endpoints.append({
+                        'tunnels': [tunnel],
+                        'tunnel_type': tunnel_type
+                    })
         return endpoints, port_db
 
     def _get_router_and_ports_from_net(self, ctx, network_id):

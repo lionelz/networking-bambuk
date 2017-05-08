@@ -35,7 +35,7 @@ def start_df(port_id, mac, host, clean_db):
         subprocess.call(['kill', str(pid)])
 
     if clean_db:
-        subprocess.Popen('df-db clean'.split(' ')).wait()
+        subprocess.Popen('rm /var/lib/bambuk/connect_db.json'.split(' ')).wait()
 
     init_cmds = [
         'modprobe nf_conntrack_ipv4',

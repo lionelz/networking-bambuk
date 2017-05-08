@@ -42,6 +42,5 @@ for p in ${PORT_LIST}; do
   ip=10.10.21.${II}
   neutron port-update --device-id=vm${II}  --binding:host_id=vm${II} ${p}
   neutron providerport-create --name=vm${II} --provider-ip ${ip} --provider-mgnt-ip ${ip} ${p}
-  neutron port-update --device-id=vm${II}  --binding:host_id=vm${II} ${p}
   II=$(($II+1))
 done
