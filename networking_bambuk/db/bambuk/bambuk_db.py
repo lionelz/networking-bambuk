@@ -50,10 +50,9 @@ class ProviderPort(model_base.BASEV2,
 def get_one_bambuk_update_log(context):
     query = context.session.query(BambukUpdateLog)
     b_log = query.first()
-    if not b_log:
-        return None
-    context.session.delete(b_log)
-    context.session.flush()
+    if b_log:
+        context.session.delete(b_log)
+        context.session.flush()
     return b_log
 
 

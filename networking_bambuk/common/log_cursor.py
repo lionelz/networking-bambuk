@@ -74,5 +74,5 @@ class LogCursor():
                     _handler = _cls_action(b_log, self._bambuk_client)
                     _handler.process()
                     LOG.debug('Bambuk processed log: %s' % b_log)
-                    return
-                LOG.debug('Bambuk has no handler for log: %s' % b_log)
+                else:
+                    LOG.debug('Bambuk has no handler for log: %s' % b_log)

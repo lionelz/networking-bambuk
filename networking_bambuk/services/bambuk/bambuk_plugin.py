@@ -15,6 +15,7 @@ from neutron.db import common_db_mixin
 from oslo_log import log as logging
 
 from sqlalchemy.orm import exc
+from networking_bambuk.common.constants import timefunc
 
 
 LOG = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
     def _core_plugin(self):
         return manager.NeutronManager.get_plugin()
 
+    @timefunc
     def _send(self, host, port, data):
         retry = 0
         data = json.encoder.JSONEncoder().encode((data))
@@ -39,9 +41,13 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                     retry, host, port, data))
                 context = zmq.Context()
                 _socket = context.socket(zmq.REQ)
+                LOG.debug('_socket 1')
                 _socket.connect("tcp://%s:%d" % (host, port))
+                LOG.debug('_socket 2')
                 _socket.send(data)
+                LOG.debug('_socket 3')
                 received = _socket.recv()
+                LOG.debug('_socket 4')
             except Exception as e:
                 LOG.error(traceback.format_exc())
                 LOG.error('%s' % sys.exc_info()[0])
@@ -96,6 +102,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         neutron_port = neutron_ports[0]
         return neutron_port
 
+    @timefunc
     def create_providerport(self, context, providerport):
         p_port = providerport['providerport']
         port_id = p_port.get('port_id')
@@ -142,8 +149,10 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 neutron_port['mac_address']
             ))
         create_update_log.awake()
-        return self._make_providerport_dict(pp_db, neutron_port)
+        res = self._make_providerport_dict(pp_db, neutron_port)
+        return res
 
+    @timefunc
     def update_providerport(self,
                            context,
                            providerport_id,
@@ -187,7 +196,8 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 neutron_port['mac_address']
             ))
         create_update_log.awake()
-        return self._make_providerport_dict(pp_db, neutron_port)
+        res = self._make_providerport_dict(pp_db, neutron_port)
+        return res        
 
     def get_providerport(self, context, providerport_id, fields=None):
         LOG.debug('get provider port %s.' % providerport_id)

@@ -35,7 +35,7 @@ def start_df(port_id, mac, host, clean_db):
         subprocess.call(['kill', str(pid)])
 
     if clean_db:
-        subprocess.Popen('rm /var/lib/bambuk/connect_db.json'.split(' ')).wait()
+        subprocess.Popen('df-db clean'.split(' ')).wait()
 
     init_cmds = [
         'modprobe nf_conntrack_ipv4',
@@ -59,7 +59,6 @@ def start_df(port_id, mac, host, clean_db):
         '--log-file', '/var/log/dragonflow.log']
     )
     tap = plug_vif.plug_vif(port_id, mac, host)
-    time.sleep(10)
     subprocess.Popen(
         ['ip', 'netns', 'exec', 'vm', 'dhclient', '-nw', '-v',
         '-pf', '/run/dhclient.%s.pid' % tap,
@@ -129,6 +128,7 @@ def receive():
                 with open(CONFIG_FILE_MD5, 'w') as cfgfile_md5:
                     old_md5 = cfgfile_md5.write(new_md5)
             _config.apply(json.decoder.JSONDecoder().decode(cfg))
+            print('sending response OK')
             _socket.send('OK')
         except:
             pass
