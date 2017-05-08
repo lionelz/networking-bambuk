@@ -1,4 +1,6 @@
-import sys
+import os
+import subprocess
+import traceback
 
 from dragonflow.db import db_api
 
@@ -11,8 +13,6 @@ from oslo_utils import importutils
 
 from tinydb import Query
 from tinydb import TinyDB
-import subprocess
-import os
 
 LOG = log.getLogger(__name__)
 
@@ -273,8 +273,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
                 'start_flag': True
             }
         except Exception:
-            e = sys.exc_info()[0]
-            LOG.error('an error occurs %s' % e)
+            LOG.error(traceback.format_exc())
             return False
         return self.agent_state
 
@@ -286,7 +285,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             for entry in connect_db:
                 self.create_key(entry['table'], entry['key'], entry['value'])
         except Exception:
-            LOG.error('an error occurs: %s', sys.exc_info())
+            LOG.error(traceback.format_exc())
             return False
         return True
 
@@ -302,8 +301,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
                              cdb_update['key'],
                              cdb_update['value'])
         except Exception:
-            e = sys.exc_info()[0]
-            LOG.error('an error occurs %s' % e)
+            LOG.error(traceback.format_exc())
             return False
         return True
 
@@ -318,8 +316,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
                 self.delete_key(cdb_delete['table'],
                                 cdb_delete['key'])
         except Exception:
-            e = sys.exc_info()[0]
-            LOG.error('an error occurs %s' % e)
+            LOG.error(traceback.format_exc())
             return False
         return True
 

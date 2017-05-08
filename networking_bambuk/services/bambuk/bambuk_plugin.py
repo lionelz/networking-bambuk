@@ -41,13 +41,9 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                     retry, host, port, data))
                 context = zmq.Context()
                 _socket = context.socket(zmq.REQ)
-                LOG.debug('_socket 1')
                 _socket.connect("tcp://%s:%d" % (host, port))
-                LOG.debug('_socket 2')
                 _socket.send(data)
-                LOG.debug('_socket 3')
                 received = _socket.recv()
-                LOG.debug('_socket 4')
             except Exception as e:
                 LOG.error(traceback.format_exc())
                 LOG.error('%s' % sys.exc_info()[0])
@@ -99,8 +95,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         if len(neutron_ports) != 1:
             raise bambuk.ProviderPortNeutronPortMultipleFound(
                 providerport_id=port_id)
-        neutron_port = neutron_ports[0]
-        return neutron_port
+        return neutron_ports[0]
 
     @timefunc
     def create_providerport(self, context, providerport):
@@ -149,8 +144,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 neutron_port['mac_address']
             ))
         create_update_log.awake()
-        res = self._make_providerport_dict(pp_db, neutron_port)
-        return res
+        return self._make_providerport_dict(pp_db, neutron_port)
 
     @timefunc
     def update_providerport(self,
@@ -196,8 +190,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 neutron_port['mac_address']
             ))
         create_update_log.awake()
-        res = self._make_providerport_dict(pp_db, neutron_port)
-        return res        
+        return self._make_providerport_dict(pp_db, neutron_port)
 
     def get_providerport(self, context, providerport_id, fields=None):
         LOG.debug('get provider port %s.' % providerport_id)

@@ -59,6 +59,9 @@ def start_df(port_id, mac, host, clean_db):
         '--log-file', '/var/log/dragonflow.log']
     )
     tap = plug_vif.plug_vif(port_id, mac, host)
+    pid = process_exist(['dhclient'])
+    if pid:
+        subprocess.call(['kill', str(pid)])
     subprocess.Popen(
         ['ip', 'netns', 'exec', 'vm', 'dhclient', '-nw', '-v',
         '-pf', '/run/dhclient.%s.pid' % tap,
