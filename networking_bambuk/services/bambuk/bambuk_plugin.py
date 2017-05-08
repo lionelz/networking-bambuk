@@ -41,7 +41,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 _socket = context.socket(zmq.REQ)
                 _socket.connect("tcp://%s:%d" % (host, port))
                 _socket.send(data)
-                received = self._socket.recv()
+                received = _socket.recv()
             except Exception as e:
                 LOG.error(traceback.format_exc())
                 LOG.error('%s' % sys.exc_info()[0])
