@@ -1,8 +1,9 @@
 import json
-import socket
 import sys
 import time
 import traceback
+
+from eventlet.green import zmq
 
 from networking_bambuk.db.bambuk import bambuk_db
 from networking_bambuk.db.bambuk import create_update_log
@@ -34,12 +35,13 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         received = None
         while not received:
             try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 LOG.debug('%d: try to send to %s:%s (%s)' % (
                     retry, host, port, data))
-                sock.connect((host, port))
-                sock.sendall(data + "\n.\n")
-                received = sock.recv(1024)
+                context = zmq.Context()
+                _socket = context.socket(zmq.REQ)
+                _socket.connect("tcp://%s:%d" % (host, port))
+                _socket.send(data)
+                received = self._socket.recv()
             except Exception as e:
                 LOG.error(traceback.format_exc())
                 LOG.error('%s' % sys.exc_info()[0])
@@ -48,7 +50,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                     raise e
                 retry = retry + 1
             finally:
-                sock.close()
+                _socket.close()
 
     def _get_vm_conf(self,
                      instance_id,
@@ -67,7 +69,8 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
 
     def _make_providerport_dict(self,
                                 providerport_db,
-                                neutron_port=None):
+                                neutron_port=None,
+                                fields=None):
         LOG.debug('_make_providerport_dict %s, %s' % (
             providerport_db, neutron_port))
         res = {
@@ -78,8 +81,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
             'provider_ip': providerport_db.provider_ip,
             'provider_mgnt_ip': providerport_db.provider_mgnt_ip,
         }
-        return res
-
+        return self._fields(res, fields)
 
     def _get_neutron_port(self, context, port_id):
         # Get the neutron port
@@ -205,7 +207,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         if not neutron_port:
             LOG.warn('no neutron port for %s.' % pp_db.port_id)
 
-        return self._make_providerport_dict(pp_db, neutron_port)
+        return self._make_providerport_dict(pp_db, neutron_port, fields)
 
     def delete_providerport(self, context, providerport_id):
         LOG.debug('removing provider port %s.' % providerport_id)
@@ -235,5 +237,6 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 neutron_port = None
             if not neutron_port:
                 LOG.warn('no neutron port for %s.' % pp_db.port_id)
-            res.append(self._make_providerport_dict(pp_db, neutron_port))
+            res.append(self._make_providerport_dict(
+                pp_db, neutron_port, fields))
         return res

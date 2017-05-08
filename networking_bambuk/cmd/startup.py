@@ -2,16 +2,18 @@ import ConfigParser
 import json
 import md5
 import os
-import SocketServer
 import subprocess
 import threading
 import time
+import zmq
 
 from networking_bambuk.cmd import plug_vif
 
 
 CONFIG_FILE = '/etc/neutron/bambuk.ini'
 CONFIG_FILE_MD5 = '/etc/neutron/bambuk.ini.md5'
+HOST = '0.0.0.0'
+PORT = 8080
 
 
 def process_exist(words):
@@ -106,36 +108,36 @@ class Startup(object):
         start_df(params['port_id'], params['mac'], params['host'], True)
 
 
-class StartupTCPHandler(SocketServer.StreamRequestHandler):
-
-    def handle(self):
-        config = Startup()
-        cfg = self.rfile.readline().strip()
-        print('received %s from %s' % (cfg, self.client_address[0]))
-        new_md5 = md5.new(cfg).hexdigest()
-        old_md5 = None
-        # read current  md5
-        if os.path.exists(CONFIG_FILE_MD5):
-            with open(CONFIG_FILE_MD5, 'r') as cfgfile_md5:
-                old_md5 = cfgfile_md5.read()
-        if old_md5 != new_md5 or not process_exist(['df-local-controller']):
-            with open(CONFIG_FILE_MD5, 'w') as cfgfile_md5:
-                old_md5 = cfgfile_md5.write(new_md5)
-            data = json.decoder.JSONDecoder().decode(cfg)
-            config.apply(data)
-        self.wfile.write("OK")
+def receive():
+    _context = zmq.Context()
+    _socket = _context.socket(zmq.REP)
+    _socket.bind("tcp://%s:%d" % (HOST, PORT))
+    while True:
+        #  Wait for next request from client
+        try:
+            print('waiting for message')
+            cfg = _socket.recv()
+            print('received %s' % cfg)
+            _config = Startup()
+            new_md5 = md5.new(cfg).hexdigest()
+            old_md5 = None
+            # read current  md5
+            if os.path.exists(CONFIG_FILE_MD5):
+                with open(CONFIG_FILE_MD5, 'r') as cfgfile_md5:
+                    old_md5 = cfgfile_md5.read()
+            if old_md5 != new_md5 or not process_exist(['df-local-controller']):
+                with open(CONFIG_FILE_MD5, 'w') as cfgfile_md5:
+                    old_md5 = cfgfile_md5.write(new_md5)
+            _config.apply(json.decoder.JSONDecoder().decode(cfg))
+            _socket.send('OK')
+        except:
+            pass
 
 
 def main():
-    HOST = '0.0.0.0'
-    PORT = 8080
 
-    SocketServer.TCPServer.allow_reuse_address = True
-    server = SocketServer.TCPServer((HOST, PORT), StartupTCPHandler)
     print('Started config tcp server on %s:%s ' % (HOST, PORT))
-
-
-    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread = threading.Thread(target=receive)
     server_thread.start()
     time.sleep(1)
 

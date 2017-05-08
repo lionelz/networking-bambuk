@@ -1,9 +1,9 @@
 from neutronclient._i18n import _
 from neutronclient.common import extension
-from neutronclient.neutron.v2_0 import NeutronCommand
 
 
 class Providerport(extension.NeutronClientExtension):
+
     resource = 'providerport'
     resource_plural = '%ss' % resource
     object_path = '/%s' % resource_plural
@@ -15,11 +15,6 @@ class ProviderportCreate(extension.ClientExtensionCreate, Providerport):
     """Create an provider port information."""
 
     shell_command = 'providerport-create'
-
-    def get_parser(self, prog_name):
-        parser = NeutronCommand.get_parser(self, prog_name)
-        self.add_known_arguments(parser)
-        return parser
 
     def add_known_arguments(self, parser):
         parser.add_argument(
@@ -55,8 +50,7 @@ class ProviderportList(extension.ClientExtensionList, Providerport):
     """List provider ports that belongs to a given tenant."""
 
     shell_command = 'providerport-list'
-    list_columns = ['id', 'name', 'tenant_id', 'provider_ip',
-                    'provider_mgnt_ip']
+    list_columns = ['id', 'name', 'provider_ip', 'provider_mgnt_ip']
     pagination_support = True
     sorting_support = True
 
