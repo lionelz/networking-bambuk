@@ -58,14 +58,20 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             file_db = os.path.join(file_db, 'connect_db.json')
         # start the configured receiver
         LOG.info('TinyDbDriver json file: %s' % file_db)
+        self._file_db = file_db
         if not already_started(file_db):
             LOG.info('TinyDbDriver initializing bambuk receiver')
             self._bambuk_receiver = importutils.import_object(
                 config.receiver(), bambuk_agent=self)
-        # open json file with tinyDb
-        self._db = TinyDB(file_db)
         LOG.info('TinyDbDriver initialize - end')
 
+    @property
+    def _db(self):
+        if not hasattr(self, '_db_obj'):
+            # open json file with tinyDb
+            self._db_obj = TinyDB(self._file_db)
+        return self._db_obj
+        
     def support_publish_subscribe(self):
         """Return if this DB support publish-subscribe.
 
