@@ -16,7 +16,9 @@ from oslo_log import log
 from networking_bambuk._i18n import _
 from networking_bambuk import version
 
+from neutron.common import config
 from neutron.common import rpc
+from neutron.plugins.ml2 import config
 
 
 bambuk_opts = [
@@ -67,10 +69,10 @@ cfg.CONF.register_opts(bambuk_opts, group='bambuk')
 def init(args, **kwargs):
     product_name = 'bambuk-dispatcher-agent'
     log.register_options(cfg.CONF)
-    log.setup(cfg.CONF, product_name)
     cfg.CONF(args=args, project=product_name,
              version='%%(prog)s %s' % version.version_info.release_string(),
              **kwargs)
+    log.setup(cfg.CONF, product_name)
     rpc.init(cfg.CONF)
 
 def list_opts():

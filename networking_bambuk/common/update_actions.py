@@ -149,11 +149,13 @@ class Action(object):
         """Get the port provider port for a given port."""
 
         binding_profile = port['binding:profile']
-        if 'provider_mgnt_ip' in binding_profile:
-            provider_port = self._bambuk_plugin.get_providerport(
-                ctx, port['id'])
-            provider_port['host_id'] = port.get(
-                'binding:host_id', None)
+        if ('provider_mgnt_ip' in binding_profile and
+                'provider_ip' in binding_profile):
+            provider_port = {
+                'provider_ip': binding_profile['provider_ip'],
+                'provider_mgnt_ip': binding_profile['provider_mgnt_ip'],
+                'host_id': port.get('binding:host_id', None)
+            }
             return provider_port
 
     def _get_endpoints(self, ctx, ports, port=None):
@@ -172,9 +174,9 @@ class Action(object):
         """
         endpoints = []
         port_db = None
-        LOG.debug('ports %s' % ports)
+#         LOG.debug('ports %s' % ports)
         for _port in ports:
-            LOG.debug('port %s' % _port)
+#             LOG.debug('port %s' % _port)
             if port and port['id'] == _port['id']:
                 # This is our port
                 port_db = _port
@@ -306,18 +308,18 @@ class PortUpdateAction(Action):
                 {'log': self._log['obj_id'], 'ex': e})
             return
 
-        provier_port = self._get_provider_port(ctx, port)
-        if not provier_port:
+        provider_port = self._get_provider_port(ctx, port)
+        if not provider_port:
             return
 
         server_conf = {
-            'device_id': provier_port['host_id'],
-            'local_ip': provier_port['provider_ip']
+            'device_id': provider_port['host_id'],
+            'local_ip': provider_port['provider_ip']
         }
 
         # get agent state
         agent_state = self._bambuk_client.state(
-            server_conf, provier_port['provider_mgnt_ip'])
+            server_conf, provider_port['provider_mgnt_ip'])
         if not agent_state:
             return
 
@@ -332,7 +334,7 @@ class PortUpdateAction(Action):
                 ctx,
                 filters={
                     'agent_type': [agent_state['agent_type']],
-                    'host': [provier_port['host_id']]
+                    'host': [provider_port['host_id']]
                 }
             )
             LOG.debug(agents)
@@ -346,36 +348,36 @@ class PortUpdateAction(Action):
         router, router_ports, other_ports = (
             self._get_router_and_ports_from_net(ctx, port['network_id']))
 
-        LOG.debug(port['network_id'])
+#         LOG.debug(port['network_id'])
 
         endpoints, port_db = self._get_endpoints(ctx, other_ports, port)
         if port_db:
             other_ports.remove(port_db)
-        LOG.debug("endpoints %s" % endpoints)
+#         LOG.debug("endpoints %s" % endpoints)
 
         for tunnel_type in agent_state['configurations']['tunnel_types']:
             if tunnel_type in TUNNEL_TYPES:
                 driver = self._type_manager.drivers.get(
                     TUNNEL_TYPES[tunnel_type])
-                LOG.debug("driver: %s" % driver)
+#                 LOG.debug("driver: %s" % driver)
                 if driver:
                     tunnel = driver.obj.add_endpoint(
-                        provier_port['provider_ip'], provier_port['host_id'])
+                        provider_port['provider_ip'], provider_port['host_id'])
                     # Notify all other listening agents
                     self._notifier.tunnel_update(
                         ctx, tunnel.ip_address, tunnel_type)
                     # get the relevant tunnels entry
                     entry = {'tunnels': driver.obj.get_endpoints()}
-                    LOG.debug('entry: %s' % entry)
+#                     LOG.debug('entry: %s' % entry)
                     entry['tunnel_type'] = tunnel_type
-                    LOG.info('entry %s' % entry)
+#                     LOG.info('entry %s' % entry)
                     endpoints.append(entry)
-        LOG.debug('endpoints %s' % endpoints)
+#         LOG.debug('endpoints %s' % endpoints)
         port_info = port_infos.BambukPortInfo(
             port_db, other_ports, endpoints, router, router_ports)
 
         self._bambuk_client.apply(
-            port_info.to_db(), provier_port['provider_mgnt_ip'])
+            port_info.to_db(), provider_port['provider_mgnt_ip'])
 
         # update all other ports for the possible new endpoint
         vms = self._get_vms(other_ports, [port['id']])

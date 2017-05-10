@@ -1,6 +1,11 @@
+import threading
+
 from oslo_log import log
+
 from eventlet.green import zmq
+
 from zmq import error
+
 from networking_bambuk.rpc import bambuk_rpc
 from networking_bambuk.common import config
 
@@ -35,8 +40,15 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
 
 class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
+    senders = {}
+
     def get_sender(self, vm):
-        return ZeroMQSender(vm, config.listener_port())
+        key = "tcp://%s:%d" % (vm, config.listener_port())
+        sender = ZeroMQSenderPool.senders.get(key)
+        if not sender:
+            sender = ZeroMQSender(vm, config.listener_port())
+            ZeroMQSenderPool.senders[key] = sender
+        return sender
 
     def start_bulk_send(self):
         return 1
@@ -47,13 +59,23 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
 class ZeroMQSender(bambuk_rpc.BambukRpcSender):
 
-    def __init__(self, host_or_ip, port=config.listener_port()):
-        super(ZeroMQSender, self).__init__()
-        LOG.debug("tcp://%s:%d" % (host_or_ip, port))
+    def init(self):
+        LOG.info('init')
         context = zmq.Context()
         self._socket = context.socket(zmq.REQ)
-        self._socket.connect("tcp://%s:%d" % (host_or_ip, port))
+        self._socket.connect(self._conn)
+
+    def __init__(self, host_or_ip, port=config.listener_port()):
+        super(ZeroMQSender, self).__init__()
+        self._lock = threading.Lock()
+        self._conn = 'tcp://%s:%d' % (host_or_ip, port)
+        self.init()
 
     def send(self, message, send_id=None):
+        self._lock.acquire()
+        LOG.debug('sending to %s: %s' % (self._conn, message))
         self._socket.send(message)
-        return self._socket.recv()
+        LOG.debug('sent to %s' % self._conn)
+        res = self._socket.recv()
+        self._lock.release()
+        return res

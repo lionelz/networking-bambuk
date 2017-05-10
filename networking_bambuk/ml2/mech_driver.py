@@ -91,7 +91,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
                                          event,
                                          trigger,
                                          **kwargs):
-        create_update_log.awake()
+        pass
 
     def delete_security_group_rule(self, resource, event, trigger, **kwargs):
         sg_rule_id = kwargs['security_group_rule_id']
@@ -109,7 +109,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
                                          event,
                                          trigger,
                                          **kwargs):
-        create_update_log.awake()
+        pass
 
     def create_port_precommit(self, context):
         port = context.current
@@ -122,7 +122,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         )
 
     def create_port_postcommit(self, context):
-        create_update_log.awake()
+        pass
 
     def update_port_precommit(self, context):
         port = context.current
@@ -135,7 +135,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         )
 
     def update_port_postcommit(self, context):
-        create_update_log.awake()
+        pass
 
     def delete_port_precommit(self, context):
         create_update_log.create_bambuk_update_log(
@@ -146,7 +146,7 @@ class BambukMechanismDriver(driver_api.MechanismDriver, PortBindingBaseMixin):
         )
 
     def delete_port_postcommit(self, context):
-        create_update_log.awake()
+        pass
 
     def bind_port(self, context):
         port = context.current

@@ -198,7 +198,7 @@ class BambukPortInfo(object):
 
         # list of chassis
         self.chassis = []
-        LOG.debug(self._endpoints)
+#         LOG.debug(self._endpoints)
         for entry in self._endpoints:
             for tunnel in entry['tunnels']:
                 self.chassis.append({

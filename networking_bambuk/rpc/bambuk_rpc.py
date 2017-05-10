@@ -35,7 +35,7 @@ class BambukAgentClient(object):
         self._sender_pool = importutils.import_object(config.sender_pool())
 
     def state(self, server_conf, vm):
-        LOG.debug('state to %s' % vm)
+#         LOG.debug('state to %s' % vm)
         return self._sender_pool.get_sender(vm).state(server_conf)
 
     def apply(self, connect_db, vm):
@@ -151,7 +151,7 @@ class BambukRpcSender(BambukRpc):
         for name, value in kwargs.items():
             message[name] = value
         message_json = json.dumps(message)
-        LOG.debug("Sending message: %s" % message_json)
+#         LOG.debug("Sending message: %s" % message_json)
         nr = 0
         sent = False
         while (not sent):
@@ -164,7 +164,7 @@ class BambukRpcSender(BambukRpc):
                 nr = nr + 1
                 if nr == 9:
                     raise e
-        LOG.debug("Received response: %s" % response_json)
+#         LOG.debug("Received response: %s" % response_json)
         if not send_id:
             return json.loads(response_json)
 

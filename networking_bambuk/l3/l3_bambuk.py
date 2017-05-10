@@ -88,7 +88,6 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
                 except Exception as ex:
                     LOG.exception(_LE('Unable to update router for %s'), id)
                     raise ex
-        create_update_log.awake()
         return result
 
     def add_router_interface(self, context, router_id, interface_info):
@@ -104,7 +103,6 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
                 bambuk_db.OBJ_TYPE_ROUTER_IFACE,
                 bambuk_db.ACTION_ATTACH,
             )
-        create_update_log.awake()
         return router_interface_info
 
     def remove_router_interface(self, context, router_id, interface_info):
@@ -123,5 +121,4 @@ class BambukL3RouterPlugin(l3_router_plugin.L3RouterPlugin):
                 bambuk_db.ACTION_DETACH,
                 network_id
             )
-        create_update_log.awake()
         return router_interface_info

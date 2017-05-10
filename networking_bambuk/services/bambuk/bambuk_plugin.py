@@ -37,8 +37,8 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         received = None
         while not received:
             try:
-                LOG.debug('%d: try to send to %s:%s (%s)' % (
-                    retry, host, port, data))
+#                 LOG.debug('%d: try to send to %s:%s (%s)' % (
+#                     retry, host, port, data))
                 context = zmq.Context()
                 _socket = context.socket(zmq.REQ)
                 _socket.connect("tcp://%s:%d" % (host, port))
@@ -73,8 +73,8 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                                 providerport_db,
                                 neutron_port=None,
                                 fields=None):
-        LOG.debug('_make_providerport_dict %s, %s' % (
-            providerport_db, neutron_port))
+#         LOG.debug('_make_providerport_dict %s, %s' % (
+#             providerport_db, neutron_port))
         res = {
             'id': providerport_db.id,
             'tenant_id': providerport_db.tenant_id,
@@ -103,7 +103,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         port_id = p_port.get('port_id')
         
         neutron_port = self._get_neutron_port(context, port_id)
-        LOG.debug('neutron_port %s' % neutron_port)
+#         LOG.debug('neutron_port %s' % neutron_port)
 
         tenant_id = neutron_port['tenant_id']
 
@@ -118,32 +118,32 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 provider_mgnt_ip=p_port.get('provider_mgnt_ip'),
             )
             context.session.add(pp_db)
+            self._core_plugin.update_port(
+                context,
+                port_id,
+                {
+                    'port': {'binding:profile': {
+                        'provider_ip': pp_db.provider_ip,
+                        'provider_mgnt_ip': pp_db.provider_mgnt_ip,
+                    }}
+                }
+            )
+            self._send(
+                pp_db.provider_mgnt_ip,
+                8080,
+                self._get_vm_conf(
+                    neutron_port['device_id'],
+                    pp_db.port_id,
+                    pp_db.provider_mgnt_ip,
+                    pp_db.provider_ip,
+                    neutron_port['mac_address']
+                ))
             create_update_log.create_bambuk_update_log(
                 context,
                 neutron_port,
                 bambuk_db.OBJ_TYPE_PORT,
                 bambuk_db.ACTION_UPDATE,
             )
-        self._core_plugin.update_port(
-            context,
-            port_id,
-            {
-                'port': {'binding:profile': {
-                    'provider_mgnt_ip': pp_db.provider_mgnt_ip
-                }}
-            }
-        )
-        self._send(
-            pp_db.provider_mgnt_ip,
-            8080,
-            self._get_vm_conf(
-                neutron_port['device_id'],
-                pp_db.port_id,
-                pp_db.provider_mgnt_ip,
-                pp_db.provider_ip,
-                neutron_port['mac_address']
-            ))
-        create_update_log.awake()
         return self._make_providerport_dict(pp_db, neutron_port)
 
     @timefunc
@@ -164,32 +164,32 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         pp = providerport['providerport']
         with context.session.begin(subtransactions=True):
             pp_db.update(pp)
+            self._core_plugin.update_port(
+                context,
+                providerport_id,
+                {
+                    'port': {'binding:profile': {
+                        'provider_ip': pp_db.provider_ip,
+                        'provider_mgnt_ip': pp_db.provider_mgnt_ip
+                    }}
+                }
+            )
+            self._send(
+                pp_db.provider_mgnt_ip,
+                8080,
+                self._get_vm_conf(
+                    neutron_port['device_id'],
+                    pp_db.port_id,
+                    pp_db.provider_mgnt_ip,
+                    pp_db.provider_ip,
+                    neutron_port['mac_address']
+                ))
             create_update_log.create_bambuk_update_log(
                 context,
                 neutron_port,
                 bambuk_db.OBJ_TYPE_PORT,
                 bambuk_db.ACTION_UPDATE,
             )
-        self._core_plugin.update_port(
-            context,
-            providerport_id,
-            {
-                'port': {'binding:profile': {
-                    'provider_mgnt_ip': pp_db.provider_mgnt_ip
-                }}
-            }
-        )
-        self._send(
-            pp_db.provider_mgnt_ip,
-            8080,
-            self._get_vm_conf(
-                neutron_port['device_id'],
-                pp_db.port_id,
-                pp_db.provider_mgnt_ip,
-                pp_db.provider_ip,
-                neutron_port['mac_address']
-            ))
-        create_update_log.awake()
         return self._make_providerport_dict(pp_db, neutron_port)
 
     def get_providerport(self, context, providerport_id, fields=None):

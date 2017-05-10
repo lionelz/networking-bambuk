@@ -14,7 +14,8 @@ function short_source {
 
 
 NET_ID=f8fc254c-1161-4d2f-8b20-8b0d673d4ba7
-NB=3
+SUBNET_ID=c3b50a8d-9d5e-41fc-bb2e-ffed7b5343f8
+NB=150
 
 # delete all existing provider ports
 PORT_LIST=`neutron providerport-list -F id -f value`
@@ -29,9 +30,9 @@ for p in ${PORT_LIST}; do
 done
 
 # create NB neutron port
-II=1
-while [ $II -le ${NB} ]; do
-  neutron port-create --device-owner="compute:nova" --fixed-ip subnet_id=c3b50a8d-9d5e-41fc-bb2e-ffed7b5343f8,ip_address=10.0.0.10${II} ${NET_ID}
+II=101
+while [ $II -le $((NB+100)) ]; do
+  neutron port-create --device-owner="compute:nova" --fixed-ip subnet_id=${SUBNET_ID},ip_address=10.0.0.${II} ${NET_ID}
   II=$(($II+1))
 done
 
