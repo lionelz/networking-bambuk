@@ -1,3 +1,4 @@
+import socket
 import threading
 
 from oslo_log import log
@@ -62,6 +63,7 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
     def init(self):
         LOG.info('init')
         context = zmq.Context()
+        context.setsockopt(socket.SO_REUSEADDR, 1)
         self._socket = context.socket(zmq.REQ)
         self._socket.connect(self._conn)
 
@@ -72,10 +74,10 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self.init()
 
     def send(self, message, send_id=None):
+        LOG.debug('sending to %s' % self._conn)
         self._lock.acquire()
-        LOG.debug('sending to %s: %s' % (self._conn, message))
         self._socket.send(message)
-        LOG.debug('sent to %s' % self._conn)
         res = self._socket.recv()
         self._lock.release()
+        LOG.debug('sent to %s (%s)' % (self._conn, res))
         return res

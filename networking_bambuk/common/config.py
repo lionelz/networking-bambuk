@@ -19,14 +19,17 @@ from networking_bambuk import version
 from neutron.common import config
 from neutron.common import rpc
 from neutron.plugins.ml2 import config
+import time
 
+
+LOG = log.getLogger(__name__)
 
 bambuk_opts = [
     cfg.StrOpt('sender_pool',
-               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQSenderPool',
+               default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPSenderPool',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('receiver',
-               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQReceiver',
+               default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPReceiver',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('json_db_cache',
                default='/var/lib/bambuk',
@@ -147,3 +150,16 @@ def os_auth_url():
 
 def os_availability_zone():
     return cfg.CONF.bambuk.os_availability_zone
+
+
+def timefunc(method):
+
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+
+        LOG.info('%r %2.2f seconds' % (method.__name__, te-ts))
+        return result
+
+    return timed

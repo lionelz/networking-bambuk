@@ -1,9 +1,9 @@
 import eventlet
 import sys
 
-from networking_bambuk.common.constants import timefunc
 from networking_bambuk.common import config
 from networking_bambuk.common import update_actions
+from networking_bambuk.common.config import timefunc
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
 from neutron.common import rpc as n_rpc

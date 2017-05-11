@@ -58,6 +58,7 @@ def start_df(port_id, mac, host, clean_db):
         '--config-file', '/etc/neutron/dragonflow.ini',
         '--log-file', '/var/log/dragonflow.log']
     )
+    time.sleep(0)
     tap = plug_vif.plug_vif(port_id, mac, host)
     pid = process_exist(['dhclient'])
     if pid:

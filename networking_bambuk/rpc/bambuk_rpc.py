@@ -116,7 +116,9 @@ class BambukRpcReceiver(BambukRpc):
 
     def state(self, **kwargs):
         server_conf = kwargs.get('server_conf')
-        return self._bambuk_agent.state(server_conf=server_conf)
+        res = self._bambuk_agent.state(server_conf=server_conf)
+        LOG.debug('state: %s' % res)
+        return res
 
     def apply(self, **kwargs):
         connect_db = kwargs.get('connect_db')

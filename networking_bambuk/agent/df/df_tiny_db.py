@@ -5,6 +5,7 @@ import traceback
 from dragonflow.db import db_api
 
 from networking_bambuk.common import config
+from networking_bambuk.common.config import timefunc
 from networking_bambuk.rpc import bambuk_rpc
 
 from oslo_log import log
@@ -283,6 +284,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             return False
         return self.agent_state
 
+    @timefunc
     def apply(self, connect_db):
         """Add objects to the database."""
         try:
@@ -295,6 +297,7 @@ class TinyDbDriver(db_api.DbApi, bambuk_rpc.BambukRpc):
             return False
         return True
 
+    @timefunc
     def update(self, connect_db_update):
         """Update objects in the database."""
         try:

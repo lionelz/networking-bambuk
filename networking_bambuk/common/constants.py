@@ -11,7 +11,6 @@
 #    under the License.
 
 import six
-import time
 
 from neutron.extensions import portbindings
 
@@ -30,15 +29,3 @@ ML2_SUPPORTED_API_EXTENSIONS_BAMBUK_L3 = [
     "l3-ha", "router_availability_zone",
     "dns-integration",
 ]
-
-def timefunc(method):
-
-    def timed(*args, **kw):
-        ts = time.time()
-        result = method(*args, **kw)
-        te = time.time()
-
-        LOG.info('%r %2.2f seconds' % (method.__name__, te-ts))
-        return result
-
-    return timed
