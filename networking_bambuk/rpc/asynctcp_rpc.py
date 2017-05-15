@@ -1,10 +1,13 @@
-from eventlet.green import asyncore
-import socket
+import sys
 import uuid
 
-from oslo_log import log
+from eventlet.green import asyncore
+from eventlet.green import socket
+
 from networking_bambuk.rpc import bambuk_rpc
 from networking_bambuk.common import config
+
+from oslo_log import log
 
 
 LOG = log.getLogger(__name__)
@@ -87,6 +90,8 @@ class TCPClient(asyncore.dispatcher):
 
     def __init__(self, address, message, m):
         asyncore.dispatcher.__init__(self, map=m)
+        self._message = message
+        self._address = address
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connect(address)
         self.out_buffer = message + SEP
@@ -95,6 +100,11 @@ class TCPClient(asyncore.dispatcher):
 
     def handle_connect(self):
         LOG.debug('handle_connect')
+
+    def handle_error(self):
+        _, v, _ = sys.exc_info()
+        LOG.error('error sending %s to %s' % (self._message, self._address))
+        raise v
 
     def handle_close(self):
         LOG.debug('handle_close')
@@ -140,11 +150,11 @@ class AsyncTCPSender(bambuk_rpc.BambukRpcSender):
 
     def __init__(self, host_or_ip, m, port=config.listener_port()):
         super(AsyncTCPSender, self).__init__()
-        LOG.debug("tcp://%s:%d" % (host_or_ip, port))
         self.address = (host_or_ip, port)
         self._map = m
 
     def send(self, message, send_id=None):
+        LOG.debug('message to send %s to %s' % (message, self.address))
         c = TCPClient(self.address, message, self._map)
         if not send_id:
             asyncore.loop(map=self._map)

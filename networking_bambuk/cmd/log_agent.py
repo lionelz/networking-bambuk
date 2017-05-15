@@ -1,4 +1,6 @@
 import eventlet
+eventlet.monkey_patch()
+
 import sys
 
 from networking_bambuk.common import config
@@ -7,11 +9,13 @@ from networking_bambuk.common.config import timefunc
 from networking_bambuk.rpc.bambuk_rpc import BambukAgentClient
 
 from neutron.common import rpc as n_rpc
+from neutron import service as neutron_service
+
+from oslo_config import cfg
 
 from oslo_log import log as logging
 
-
-eventlet.monkey_patch()
+from oslo_service import service
 
 
 LOG = logging.getLogger(__name__)
@@ -41,18 +45,19 @@ class LogAgentWorker(n_rpc.Service):
         _handler.process()
 
 
-
 def main():
     config.init(sys.argv[1:])
-
     worker = LogAgentWorker()
+    launcher = service.ProcessLauncher(
+        cfg.CONF, wait_interval=1.0)
+    launcher.launch_service(worker, workers=cfg.CONF.rpc_workers)
 
     # Start everything.
     LOG.info('worker  initialized successfully, now running.')
-    worker.start()
+    pool = eventlet.GreenPool()
+    pool.spawn(launcher.wait)
+    pool.waitall()
 
-    while True:
-        eventlet.sleep(600)
 
 
 if __name__ == "__main__":

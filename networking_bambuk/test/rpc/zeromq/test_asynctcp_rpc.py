@@ -55,7 +55,7 @@ class TestAsyncTCPRpc(unittest.TestCase):
     def setUpClass(cls):
         bambuk_agent = FakeBambukAgent()
         TestAsyncTCPRpc._receiver = asynctcp_rpc.AsyncTCPReceiver(bambuk_agent)
-        TestAsyncTCPRpc._sender = asynctcp_rpc.AsyncTCPSender('localhost')
+        TestAsyncTCPRpc._sender = asynctcp_rpc.AsyncTCPSender('localhost', {})
 
     @classmethod
     def tearDownClass(cls):

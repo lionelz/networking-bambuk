@@ -207,6 +207,11 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 context, bambuk_db.ProviderPort, providerport_id)
             with context.session.begin(subtransactions=True):
                 context.session.delete(pp_db)
+                self._core_plugin.update_port(
+                    context,
+                    providerport_id,
+                    {'port': {'binding:profile': {}}}
+                )
         except exc.NoResultFound:
             pass
 

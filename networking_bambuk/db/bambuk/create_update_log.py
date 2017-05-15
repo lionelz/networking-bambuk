@@ -13,7 +13,7 @@ from oslo_utils import uuidutils
 LOG = o_log.getLogger(__name__)
 
 
-target = oslo_messaging.Target(topic='bambuk', version='1.0', exchange='bambuk')
+target = oslo_messaging.Target(topic='bambuk', version='1.0')
 client = n_rpc.get_client(target)
 
 def create_bambuk_update_log(context, obj, obj_type,

@@ -1,5 +1,7 @@
+import eventlet
 import socket
 import threading
+import uuid
 
 from oslo_log import log
 
@@ -42,8 +44,9 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
 class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
     senders = {}
+    pools = {}
 
-    def get_sender(self, vm):
+    def get_sender(self, vm, send_id=None):
         key = "tcp://%s:%d" % (vm, config.listener_port())
         sender = ZeroMQSenderPool.senders.get(key)
         if not sender:
@@ -52,10 +55,13 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
         return sender
 
     def start_bulk_send(self):
-        return 1
+        send_id = uuid.uuid4()
+        ZeroMQSenderPool.senders[send_id] = eventlet.GreenPool()
+        return send_id
     
     def loop(self, send_id):
-        pass
+        ZeroMQSenderPool.senders[send_id].waitall()
+        del ZeroMQSenderPool.senders[send_id]
 
 
 class ZeroMQSender(bambuk_rpc.BambukRpcSender):
@@ -73,11 +79,20 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self._conn = 'tcp://%s:%d' % (host_or_ip, port)
         self.init()
 
-    def send(self, message, send_id=None):
-        LOG.debug('sending to %s' % self._conn)
+    def _send(self, message):
         self._lock.acquire()
         self._socket.send(message)
         res = self._socket.recv()
         self._lock.release()
-        LOG.debug('sent to %s (%s)' % (self._conn, res))
         return res
+
+    def send(self, message, send_id=None):
+        LOG.debug('sending to %s' % self._conn)
+        if send_id:
+            ZeroMQSenderPool.senders[send_id].spawn_n(self._send, message)
+            LOG.debug('sent to %s in bilk mode' % self._conn)
+            return
+        else:
+            res = self._send(message)
+            LOG.debug('sent to %s (%s)' % (self._conn, res))
+            return res

@@ -26,10 +26,10 @@ LOG = log.getLogger(__name__)
 
 bambuk_opts = [
     cfg.StrOpt('sender_pool',
-               default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPSenderPool',
+               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQSenderPool',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('receiver',
-               default='networking_bambuk.rpc.asynctcp_rpc.AsyncTCPReceiver',
+               default='networking_bambuk.rpc.zeromq_rpc.ZeroMQReceiver',
                help=_('The client agent pool class implementation')),
     cfg.StrOpt('json_db_cache',
                default='/var/lib/bambuk',

@@ -2,11 +2,12 @@ import abc
 import eventlet
 import json
 import six
-import traceback
+import sys
 
-from eventlet.green import time
 from networking_bambuk.common import config
+
 from oslo_log import log
+
 from oslo_utils import importutils
 
 
@@ -94,7 +95,7 @@ class BambukRpcReceiver(BambukRpc):
         self._bambuk_agent = bambuk_agent
         self._running = True
         eventlet.spawn_n(self.receive)
-        time.sleep(1)
+        eventlet.sleep(0)
 
     @abc.abstractmethod
     def receive(self):
@@ -161,11 +162,12 @@ class BambukRpcSender(BambukRpc):
                 response_json = self.send(message_json, send_id)
                 sent = True
             except Exception as e:
-                LOG.error(traceback.format_exc())
-                time.sleep(1)
                 nr = nr + 1
-                if nr == 9:
+                if nr == 10:
+                    LOG.error('retried 10 times to send')
                     raise e
+                LOG.error('retry number %d' % nr)
+                eventlet.sleep(2)
 #         LOG.debug("Received response: %s" % response_json)
         if not send_id:
             return json.loads(response_json)
