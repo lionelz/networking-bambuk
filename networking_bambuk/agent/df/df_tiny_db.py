@@ -1,5 +1,4 @@
 import os
-import subprocess
 
 from dragonflow.db import db_api
 
@@ -14,19 +13,6 @@ from tinydb import Query
 from tinydb import TinyDB
 
 LOG = log.getLogger(__name__)
-
-
-def already_started(f):
-    proc = subprocess.Popen(
-        ['sudo', 'lsof'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    stdout, _ = proc.communicate()
-    for l in stdout.split():
-        if f in l:
-            return True
-    return False
 
 
 class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
@@ -55,7 +41,7 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         # start the configured receiver
         LOG.info('TinyDbDriver json file: %s' % file_db)
         self._file_db = file_db
-        if not already_started(file_db):
+        if not self._already_started(file_db):
             LOG.info('TinyDbDriver initializing bambuk receiver')
             self._bambuk_receiver = importutils.import_object(
                 config.receiver(), bambuk_agent=self)

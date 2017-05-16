@@ -1,3 +1,4 @@
+import subprocess
 import traceback
 
 from networking_bambuk.common import config
@@ -17,6 +18,18 @@ class AgentDbDriver(bambuk_rpc.BambukRpc):
         """Constructor."""
         super(AgentDbDriver, self).__init__()
         
+    def _already_started(self, f):
+        proc = subprocess.Popen(
+            ['sudo', 'lsof'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        stdout, _ = proc.communicate()
+        for l in stdout.split():
+            if f in l:
+                return True
+        return False
+
     #########################################################################
     def state(self, server_conf):
         """Return the agent configuration."""

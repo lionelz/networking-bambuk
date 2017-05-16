@@ -11,6 +11,8 @@ from oslo_log import log
 
 from oslo_serialization import jsonutils
 
+from oslo_utils import importutils
+
 
 LOG = log.getLogger(__name__)
 
@@ -38,6 +40,14 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         LOG.info('BSDDbDriver initialize - begin')
         self._db_dir = config.db_dir()
         self._tables = {}
+
+        lock_db = os.path.join(self._db_dir, '.lock')
+
+        # start the configured receiver
+        if not self._already_started(lock_db):
+            LOG.info('BSDDbDriver initializing bambuk receiver')
+            self._bambuk_receiver = importutils.import_object(
+                config.receiver(), bambuk_agent=self)
 
         LOG.info('BSDDbDriver initialize - end')
 
