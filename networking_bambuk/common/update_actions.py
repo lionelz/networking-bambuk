@@ -1,14 +1,11 @@
 from neutron import context as n_context
+from neutron import manager
 from neutron.api.v2 import attributes
-from neutron.common import constants as n_const
 from neutron.common import topics
 from neutron.db import db_base_plugin_v2
 from neutron.db import models_v2
 from neutron.db import securitygroups_db
-from neutron.db.db_base_plugin_v2 import NeutronDbPluginV2
-from neutron.db.l3_attrs_db import ExtraAttributesMixin
-from neutron.db.l3_db import L3_NAT_dbonly_mixin
-from neutron.extensions import l3, portbindings
+from neutron.extensions import l3
 from neutron.extensions import securitygroup as ext_sg
 from neutron.plugins.common import constants as p_const
 from neutron.plugins.ml2 import managers
@@ -18,9 +15,6 @@ from networking_bambuk._i18n import _LE
 from networking_bambuk.common import config
 from networking_bambuk.common import port_infos
 from networking_bambuk.db.bambuk import bambuk_db
-from networking_bambuk.services.bambuk.bambuk_plugin import BambukPlugin
-
-from oslo_config import cfg
 
 from oslo_log import log as o_log
 
@@ -55,15 +49,8 @@ def _port_result_filter_hook(query, filters):
     return query.filter(sgpb_sg_id == val)
 
 
-class Action(NeutronDbPluginV2, L3_NAT_dbonly_mixin, BambukPlugin,
-             ExtraAttributesMixin):
+class Action(object):
     """Base class for Action handlers."""
-
-    extra_attributes = (
-        ExtraAttributesMixin.extra_attributes + [{
-            'name': "distributed",
-            'default': cfg.CONF.router_distributed
-        }])
 
     def __init__(self, log, bambuk_client):
         """Constructor.
@@ -91,61 +78,35 @@ class Action(NeutronDbPluginV2, L3_NAT_dbonly_mixin, BambukPlugin,
             _port_result_filter_hook)
         db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
             l3.ROUTERS, [_extend_dict_std_attr_id])
-        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            attributes.PORTS, ['_ml2_extend_port_dict_binding'])
         self._notifier = rpc.AgentNotifierApi(topics.AGENT)
         self._type_manager = managers.TypeManager()
 
-    def _get_vif_details(self, binding):
-        if binding.vif_details:
-            try:
-                return jsonutils.loads(binding.vif_details)
-            except Exception:
-                LOG.error(_LE("Serialized vif_details DB value '%(value)s' "
-                              "for port %(port)s is invalid"),
-                          {'value': binding.vif_details,
-                           'port': binding.port_id})
-        return {}
-
-    def _get_profile(self, binding):
-        if binding.profile:
-            try:
-                return jsonutils.loads(binding.profile)
-            except Exception:
-                LOG.error(_LE("Serialized profile DB value '%(value)s' for "
-                              "port %(port)s is invalid"),
-                          {'value': binding.profile,
-                           'port': binding.port_id})
-        return {}
-
-    def _ml2_extend_port_dict_binding(self, port_res, port_db):
-        # None when called during unit tests for other plugins.
-        if port_db.port_binding:
-            self._update_port_dict_binding(port_res, port_db.port_binding)
-
-    def _update_port_dict_binding(self, port, binding):
-        port[portbindings.VNIC_TYPE] = binding.vnic_type
-        port[portbindings.PROFILE] = self._get_profile(binding)
-        if port['device_owner'] == n_const.DEVICE_OWNER_DVR_INTERFACE:
-            port[portbindings.HOST_ID] = ''
-            port[portbindings.VIF_TYPE] = portbindings.VIF_TYPE_DISTRIBUTED
-            port[portbindings.VIF_DETAILS] = {}
-        else:
-            port[portbindings.HOST_ID] = binding.host
-            port[portbindings.VIF_TYPE] = binding.vif_type
-            port[portbindings.VIF_DETAILS] = self._get_vif_details(binding)
-
     @property
     def _plugin(self):
-        return self
+        if not hasattr(self, '_plugin_property'):
+            pp = manager.NeutronManager.get_plugin()
+            pp._extend_dict_std_attr_id = _extend_dict_std_attr_id
+            pp._port_model_hook = _port_model_hook
+            pp._port_result_filter_hook = _port_result_filter_hook
+            self._plugin_property = pp
+        return self._plugin_property
 
     @property
     def _bambuk_plugin(self):
-        return self
+        if not hasattr(self, '_bambuk_plugin_property'):
+            pp = manager.NeutronManager.get_service_plugins().get(
+                    'bambuk')
+            self._bambuk_plugin_property = pp
+        return self._bambuk_plugin_property
 
     @property
     def _l3_plugin(self):
-        return self
+        if not hasattr(self, '_l3_plugin_property'):
+            pp = manager.NeutronManager.get_service_plugins().get(
+                    p_const.L3_ROUTER_NAT)
+            pp._extend_dict_std_attr_id = _extend_dict_std_attr_id
+            self._l3_plugin_property = pp
+        return self._l3_plugin_property
 
     @staticmethod
     def _get_vms(ports, exclude_ids=None):

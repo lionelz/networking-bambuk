@@ -31,9 +31,9 @@ bambuk_opts = [
     cfg.StrOpt('receiver',
                default='networking_bambuk.rpc.zeromq_rpc.ZeroMQReceiver',
                help=_('The client agent pool class implementation')),
-    cfg.StrOpt('json_db_cache',
+    cfg.StrOpt('db_dir',
                default='/var/lib/bambuk',
-               help=_('The JSON DB file cache')),
+               help=_('The DB folder')),
     cfg.StrOpt('listener_ip',
                default='0.0.0.0',
                help=_('The ip to listen')),
@@ -92,8 +92,8 @@ def receiver():
     return cfg.CONF.bambuk.receiver
 
 
-def json_db_cache():
-    return cfg.CONF.bambuk.json_db_cache
+def db_dir():
+    return cfg.CONF.bambuk.db_dir
 
 
 def listener_ip():

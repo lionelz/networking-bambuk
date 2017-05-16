@@ -45,6 +45,7 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
     senders = {}
     pools = {}
+    cur = {}
 
     def get_sender(self, vm, send_id=None):
         key = "tcp://%s:%d" % (vm, config.listener_port())
@@ -56,12 +57,15 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
     def start_bulk_send(self):
         send_id = uuid.uuid4()
-        ZeroMQSenderPool.senders[send_id] = eventlet.GreenPool()
+        ZeroMQSenderPool.pools[send_id] = eventlet.GreenPool()
+        ZeroMQSenderPool.cur[send_id] = set()
         return send_id
     
     def loop(self, send_id):
-        ZeroMQSenderPool.senders[send_id].waitall()
-        del ZeroMQSenderPool.senders[send_id]
+        eventlet.sleep(0)
+        ZeroMQSenderPool.pools[send_id].waitall()
+        del ZeroMQSenderPool.pools[send_id]
+        del ZeroMQSenderPool.cur[send_id]
 
 
 class ZeroMQSender(bambuk_rpc.BambukRpcSender):
@@ -79,18 +83,25 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self._conn = 'tcp://%s:%d' % (host_or_ip, port)
         self.init()
 
-    def _send(self, message):
+    @config.timefunc
+    def _send(self, message, send_id=None):
         self._lock.acquire()
         self._socket.send(message)
         res = self._socket.recv()
         self._lock.release()
+        if send_id:
+            ZeroMQSenderPool.cur[send_id].remove(self._conn)
+            LOG.debug('received %s....' % self._conn)
+            LOG.debug('cur %s....' % ZeroMQSenderPool.cur[send_id])
         return res
 
     def send(self, message, send_id=None):
         LOG.debug('sending to %s' % self._conn)
         if send_id:
-            ZeroMQSenderPool.senders[send_id].spawn_n(self._send, message)
-            LOG.debug('sent to %s in bilk mode' % self._conn)
+            ZeroMQSenderPool.cur[send_id].add(self._conn)
+            ZeroMQSenderPool.pools[send_id].spawn_n(
+                self._send, message, send_id)
+            LOG.debug('sent to %s in bulk mode' % self._conn)
             return
         else:
             res = self._send(message)

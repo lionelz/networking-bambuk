@@ -2,7 +2,7 @@ import abc
 import eventlet
 import json
 import six
-import sys
+import traceback
 
 from networking_bambuk.common import config
 
@@ -164,9 +164,11 @@ class BambukRpcSender(BambukRpc):
             except Exception as e:
                 nr = nr + 1
                 if nr == 10:
-                    LOG.error('retried 10 times to send')
+                    LOG.error(
+                        'retried 10 times to send %s', traceback.format_exc())
                     raise e
-                LOG.error('retry number %d' % nr)
+                LOG.error(
+                    'retry number %d, %s', (nr, traceback.format_exc()))
                 eventlet.sleep(2)
 #         LOG.debug("Received response: %s" % response_json)
         if not send_id:

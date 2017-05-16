@@ -1,5 +1,6 @@
 import os
-import subprocess
+
+from bsddb3 import db                   # the Berkeley db data base
 
 from dragonflow.db import db_api
 
@@ -8,33 +9,18 @@ from networking_bambuk.common import config
 
 from oslo_log import log
 
-from oslo_utils import importutils
+from oslo_serialization import jsonutils
 
-from tinydb import Query
-from tinydb import TinyDB
 
 LOG = log.getLogger(__name__)
 
 
-def already_started(f):
-    proc = subprocess.Popen(
-        ['sudo', 'lsof'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
-    stdout, _ = proc.communicate()
-    for l in stdout.split():
-        if f in l:
-            return True
-    return False
-
-
-class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
-    """Tiny DB Driver for Dragonflow DB."""
+class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
+    """BSD DB Driver for Dragonflow DB."""
 
     def __init__(self):
         """Constructor."""
-        super(TinyDbDriver, self).__init__()
+        super(BSDDbDriver, self).__init__()
 
     ##########################################################################
     def initialize(self, db_ip, db_port, **args):
@@ -49,35 +35,22 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :type args:        dictionary of <string, object>
         :returns:          None
         """
-        LOG.info('TinyDbDriver initialize - begin')
-        file_db = os.path.join(config.db_dir(), 'connect_db.json')
+        LOG.info('BSDDbDriver initialize - begin')
+        self._db_dir = config.db_dir()
+        self._tables = {}
 
-        # start the configured receiver
-        LOG.info('TinyDbDriver json file: %s' % file_db)
-        self._file_db = file_db
-        if not already_started(file_db):
-            LOG.info('TinyDbDriver initializing bambuk receiver')
-            self._bambuk_receiver = importutils.import_object(
-                config.receiver(), bambuk_agent=self)
-        LOG.info('TinyDbDriver initialize - end')
+        LOG.info('BSDDbDriver initialize - end')
 
-    @property
-    def _db(self):
-        if not hasattr(self, '_db_obj'):
-            # open json file with tinyDb
-            self._db_obj = TinyDB(self._file_db)
-        return self._db_obj
+    def _get_db(self, table):
+        if table in self._tables:
+            return self._tables[table]
+        filename = os.path.join(self._db_dir, table)
+        tDB = db.DB()
+        tDB.open(filename, None, db.DB_HASH, db.DB_CREATE)
+        self._tables[table] = tDB
+        tDB.sync()
+        return tDB
         
-    def support_publish_subscribe(self):
-        """Return if this DB support publish-subscribe.
-
-           If this method returns True, the DB driver needs to
-           implement register_notification_callback() API in this class
-
-        :returns:          boolean (True or False)
-        """
-        return False
-
     def create_table(self, table):
         """Create a table.
 
@@ -85,7 +58,7 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :type table:       string
         :returns:          None
         """
-        self._db.table(table)
+        self._get_db(table)
 
     def delete_table(self, table):
         """Delete a table.
@@ -94,7 +67,11 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :type table:       string
         :returns:          None
         """
-        self._db.purge_table(table)
+        filename = os.path.join(self._db_dir, table)
+        if table in self._tables:
+            self._tables[table].close()
+            del self._tables[table]
+        os.remove(filename)
 
     def get_key(self, table, key, topic=None):
         """Get the value of a specific key in a table.
@@ -108,12 +85,11 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :returns:          string - the key value
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
-        t_entries = self._db.table(table)
-        entry = t_entries.get(Query().key == key)
-        if entry:
-            return entry['value']
-        else:
-            return None
+        _db = self._get_db(table)
+        value = _db.get(key)
+        if value:
+            return jsonutils.loads(value)
+        return value
 
     def set_key(self, table, key, value, topic=None, sync=True):
         """Set a specific key in a table with value.
@@ -129,11 +105,10 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :returns:          None
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
-        t_entries = self._db.table(table)
-        if t_entries.get(Query().key == key):
-            t_entries.update({'value': value}, Query().key == key)
-        else:
-            self.create_key(table, key, value, topic)
+        _db = self._get_db(table)
+        _db.put(key, jsonutils.dumps(value))
+        if sync:
+            _db.sync()
 
     def create_key(self, table, key, value, topic=None, sync=True):
         """Create a specific key in a table with value.
@@ -148,8 +123,10 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :type topic:       string
         :returns:          None
         """
-        t_entries = self._db.table(table)
-        t_entries.insert({'key': key, 'value': value})
+        _db = self._get_db(table)
+        _db.put(key, jsonutils.dumps(value))
+        if sync:
+            _db.sync()
 
     def delete_key(self, table, key, topic=None, sync=True):
         """Delete a specific key from a table.
@@ -163,8 +140,10 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :returns:          None
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
-        t_entries = self._db.table(table)
-        t_entries.remove(Query().key == key)
+        _db = self._get_db(table)
+        _db.delete(key)
+        if sync:
+            _db.sync()
 
     def get_all_entries(self, table, topic=None):
         """Return a list of all table entries values.
@@ -176,11 +155,8 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :returns:          list of values
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
-        t_entries = self._db.table(table)
-        res = []
-        for entry in t_entries.all():
-            res.append(entry['value'])
-        return res
+        _db = self._get_db(table)
+        return [jsonutils.loads(v) for v in _db.values()]
 
     def get_all_keys(self, table, topic=None):
         """Return a list of all table entries keys.
@@ -192,14 +168,13 @@ class TinyDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :returns:          list of keys
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
-        t_entries = self._db.table(table)
-        res = []
-        for entry in t_entries.all():
-            res.append(entry['key'])
-        return res
+        _db = self._get_db(table)
+        return _db.keys()
 
     def sync(self):
-        pass
+        for table in self._tables:
+            table.sync()
 
     def clear_all(self):
-        self._db.purge_tables()
+        for f in os.listdir(self._db_dir):
+            self.delete_table(f)
