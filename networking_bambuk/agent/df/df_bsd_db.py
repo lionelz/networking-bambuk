@@ -55,6 +55,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         LOG.info('BSDDbDriver initialize - end')
 
     def _get_db(self, table):
+        table = table.encode('utf8')
         if table in self._tables:
             return self._tables[table]
         filename = os.path.join(self._db_dir, table)
@@ -99,7 +100,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
         _db = self._get_db(table)
-        value = _db.get(key)
+        value = _db.get(key.encode('utf8'))
         if value:
             return jsonutils.loads(value)
         return value
@@ -119,7 +120,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
         _db = self._get_db(table)
-        _db.put(key, jsonutils.dumps(value))
+        _db.put(key.encode('utf8'), jsonutils.dumps(value))
         if sync:
             _db.sync()
 
@@ -137,7 +138,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :returns:          None
         """
         _db = self._get_db(table)
-        _db.put(key, jsonutils.dumps(value))
+        _db.put(key.encode('utf8'), jsonutils.dumps(value))
         if sync:
             _db.sync()
 
@@ -154,7 +155,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
         _db = self._get_db(table)
-        _db.delete(key)
+        _db.delete(key.encode('utf8'))
         if sync:
             _db.sync()
 
@@ -182,7 +183,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
         :raises:           DragonflowException.DBKeyNotFound if key not found
         """
         _db = self._get_db(table)
-        return _db.keys()
+        return [k.decode('utf8') for k in _db.keys()]
 
     def support_publish_subscribe(self):
         """Return if this DB support publish-subscribe.
@@ -257,7 +258,7 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
     ##########################################################################
     def sync(self):
         for table in self._tables:
-            table.sync()
+            self._tables[table].sync()
 
     def clear_all(self):
         for f in os.listdir(self._db_dir):
