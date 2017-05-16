@@ -45,6 +45,9 @@ class BSDDbDriver(db_api.DbApi, df_agent_db.AgentDbDriver):
 
         # start the configured receiver
         if not self._already_started(lock_db):
+            self._fl = open(lock_db, 'w')
+            self._fl.write('0')
+            self._fl.flush()
             LOG.info('BSDDbDriver initializing bambuk receiver')
             self._bambuk_receiver = importutils.import_object(
                 config.receiver(), bambuk_agent=self)
