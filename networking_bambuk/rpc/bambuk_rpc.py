@@ -168,7 +168,7 @@ class BambukRpcSender(BambukRpc):
                         'retried 10 times to send %s', traceback.format_exc())
                     raise e
                 LOG.error(
-                    'retry number %d, %s', (nr, traceback.format_exc()))
+                    'retry number %d, %s' % (nr, traceback.format_exc()))
                 eventlet.sleep(2)
 #         LOG.debug("Received response: %s" % response_json)
         if not send_id:

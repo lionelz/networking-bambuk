@@ -35,7 +35,7 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
                 LOG.info('received %s' % message)
                 response = self.call_agent(message)
                 LOG.info('sending %s' % response)
-                self._socket.send(response)
+                self._socket.send(response, zmq.NOBLOCK)
                 LOG.info('%s sent' % response)
             except error.Again:
                 pass
@@ -57,7 +57,7 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
     def start_bulk_send(self):
         send_id = uuid.uuid4()
-        ZeroMQSenderPool.pools[send_id] = eventlet.GreenPool()
+        ZeroMQSenderPool.pools[send_id] = eventlet.GreenPool(20000)
         ZeroMQSenderPool.cur[send_id] = set()
         return send_id
     
@@ -75,7 +75,12 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         context = zmq.Context()
         context.setsockopt(socket.SO_REUSEADDR, 1)
         self._socket = context.socket(zmq.REQ)
+        self._socket.setsockopt(zmq.SNDTIMEO, 5)
+        self._socket.setsockopt(zmq.RCVTIMEO, 5)
+        self._socket.setsockopt(zmq.LINGER, 0)
         self._socket.connect(self._conn)
+        self._poll = zmq.Poller()
+        self._poll.register(self._socket, zmq.POLLIN)
 
     def __init__(self, host_or_ip, port=config.listener_port()):
         super(ZeroMQSender, self).__init__()
@@ -83,27 +88,37 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self._conn = 'tcp://%s:%d' % (host_or_ip, port)
         self.init()
 
-    @config.timefunc
     def _send(self, message, send_id=None):
+        res = None
         self._lock.acquire()
-        self._socket.send(message)
-        res = self._socket.recv()
-        self._lock.release()
+        try:
+#             LOG.debug('before send to %s in bulk mode' % self._conn)
+            self._socket.send(message, zmq.NOBLOCK)
+#             LOG.debug('after send to %s in bulk mode' % self._conn)
+            sockets = dict(self._poll.poll(3000))
+            if self._socket in sockets:
+                res = self._socket.recv()
+            else:
+                self._socket.close()
+                self.init()
+                LOG.error('message not sent for %s...' % self._conn)
+#             LOG.debug('after recv to %s in bulk mode' % self._conn)
+        finally:
+            self._lock.release()
         if send_id:
             ZeroMQSenderPool.cur[send_id].remove(self._conn)
-            LOG.debug('received %s....' % self._conn)
-            LOG.debug('cur %s....' % ZeroMQSenderPool.cur[send_id])
+#             LOG.debug('received %s....' % self._conn)
+#             LOG.debug('cur %s....' % ZeroMQSenderPool.cur[send_id])
         return res
 
     def send(self, message, send_id=None):
-        LOG.debug('sending to %s' % self._conn)
+#         LOG.debug('sending to %s' % self._conn)
         if send_id:
             ZeroMQSenderPool.cur[send_id].add(self._conn)
             ZeroMQSenderPool.pools[send_id].spawn_n(
                 self._send, message, send_id)
-            LOG.debug('sent to %s in bulk mode' % self._conn)
             return
         else:
             res = self._send(message)
-            LOG.debug('sent to %s (%s)' % (self._conn, res))
+#             LOG.debug('sent to %s (%s)' % (self._conn, res))
             return res

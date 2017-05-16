@@ -15,7 +15,7 @@ function short_source {
 
 NET_ID=861ed60d-2d5d-42e5-99d9-c5f0becdb4ed
 SUBNET_ID=7e959d2d-e5a5-4cc8-bbe9-4a0c43bdee3f
-NB=5
+NB=150
 
 # delete all existing provider ports
 PORT_LIST=`neutron providerport-list -F id -f value`

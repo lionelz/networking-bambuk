@@ -137,7 +137,7 @@ class Action(object):
     def _get_provider_port(self, ctx, port):
         """Get the port provider port for a given port."""
 
-        LOG.debug('%s', port)
+#         LOG.debug('%s', port)
         binding_profile = port['binding:profile']
         if ('provider_mgnt_ip' in binding_profile and
                 'provider_ip' in binding_profile):

@@ -1,4 +1,5 @@
 import eventlet
+# import threading
 eventlet.monkey_patch()
 
 import sys
@@ -27,8 +28,10 @@ class LogAgentWorker(n_rpc.Service):
     def __init__(self):
         super(LogAgentWorker, self).__init__(config.host(), 'bambuk')
         self._bambuk_client = BambukAgentClient()
+#         self._lock = threading.Lock()
 
     def process_log(self, context, **kwargs):
+#         self._lock.acquire()
         update_log = kwargs['log']
         LOG.info('log to process %s' % update_log)
         _action_touple = (update_log['obj_type'], update_log['action_type'])
@@ -38,6 +41,7 @@ class LogAgentWorker(n_rpc.Service):
             LOG.debug('Bambuk processed log: %s' % update_log)
         else:
             LOG.debug('Bambuk has no handler for log: %s' % update_log)
+#         self._lock.release()
 
     @timefunc
     def _call_process(self, cls_action, b_log):
