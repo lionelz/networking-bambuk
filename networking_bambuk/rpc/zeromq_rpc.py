@@ -11,6 +11,7 @@ from zmq import error
 
 from networking_bambuk.rpc import bambuk_rpc
 from networking_bambuk.common import config
+import traceback
 
 
 LOG = log.getLogger(__name__)
@@ -30,23 +31,19 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
         self._socket.setsockopt(zmq.RCVTIMEO, 5)
         self._socket.setsockopt(zmq.LINGER, 0)
         self._socket.bind("tcp://%s:%d" % (self._ip, self._port))
-        self._poll = zmq.Poller()
-        self._poll.register(self._socket, zmq.POLLIN)
         while self._running:
             #  Wait for next request from client
             try:
                 LOG.info('waiting for message')
-                eventlet.sleep(0)
-                sockets = dict(self._poll.poll(3000))
-                if self._socket in sockets:
-                    message = self._socket.recv()
-                    LOG.info('received %s' % message)
-                    response = self.call_agent(message)
-                    LOG.info('sending %s' % response)
-                    self._socket.send(response, zmq.NOBLOCK)
-                    LOG.info('%s sent' % response)
+                message = self._socket.recv()
+                LOG.info('received %s' % message)
+                response = self.call_agent(message)
+                LOG.info('sending %s' % response)
+                self._socket.send(response, zmq.NOBLOCK)
+                LOG.info('%s sent' % response)
             except Exception as e:
-                LOG.error('an exception occured %s' % e)
+                LOG.error('an exception occured %s, %s' % (
+                    e, traceback.format_exc()))
 
 
 class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
