@@ -36,6 +36,7 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
             #  Wait for next request from client
             try:
                 LOG.info('waiting for message')
+                eventlet.sleep(0)
                 sockets = dict(self._poll.poll(3000))
                 if self._socket in sockets:
                     message = self._socket.recv()
