@@ -26,19 +26,26 @@ class ZeroMQReceiver(bambuk_rpc.BambukRpcReceiver):
     def receive(self):
         context = zmq.Context()
         self._socket = context.socket(zmq.REP)
+        self._socket.setsockopt(zmq.SNDTIMEO, 5)
+        self._socket.setsockopt(zmq.RCVTIMEO, 5)
+        self._socket.setsockopt(zmq.LINGER, 0)
         self._socket.bind("tcp://%s:%d" % (self._ip, self._port))
+        self._poll = zmq.Poller()
+        self._poll.register(self._socket, zmq.POLLIN)
         while self._running:
             #  Wait for next request from client
             try:
                 LOG.info('waiting for message')
-                message = self._socket.recv()
-                LOG.info('received %s' % message)
-                response = self.call_agent(message)
-                LOG.info('sending %s' % response)
-                self._socket.send(response, zmq.NOBLOCK)
-                LOG.info('%s sent' % response)
-            except error.Again:
-                pass
+                sockets = dict(self._poll.poll(3000))
+                if self._socket in sockets:
+                    message = self._socket.recv()
+                    LOG.info('received %s' % message)
+                    response = self.call_agent(message)
+                    LOG.info('sending %s' % response)
+                    self._socket.send(response, zmq.NOBLOCK)
+                    LOG.info('%s sent' % response)
+            except Exception as e:
+                LOG.error('an exception occured %s' % e)
 
 
 class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
