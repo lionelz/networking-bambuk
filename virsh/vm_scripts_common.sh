@@ -1,4 +1,4 @@
-SCRIPTS_PATH=~/scripts
+SCRIPTS_PATH=`pwd`
 IMAGES_PATH=/var/lib/libvirt/images
 TEMPLATES_PATH=$SCRIPTS_PATH/templates
 TEMPLATE_NAME=vm-template

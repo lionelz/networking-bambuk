@@ -20,40 +20,40 @@ iface ens3 inet static
     dns-nameservers 10.10.0.1 8.8.8.8
     dns-search cloud.toga.local
 
-auto ens4
-iface ens4 inet static
-    address IP_ADDRESS1_GOES_HERE
-    network 192.168.0.0
-    netmask 255.255.255.0
-    broadcast 192.168.0.255
+#auto ens4
+#iface ens4 inet static
+#    address IP_ADDRESS1_GOES_HERE
+#    network 192.168.0.0
+#    netmask 255.255.255.0
+#    broadcast 192.168.0.255
 
-auto ens5
-iface ens5 inet static
-    address IP_ADDRESS2_GOES_HERE
-    network 192.168.1.0
-    netmask 255.255.255.0
-    broadcast 192.168.1.255
+#auto ens5
+#iface ens5 inet static
+#    address IP_ADDRESS2_GOES_HERE
+#    network 192.168.1.0
+#    netmask 255.255.255.0
+#    broadcast 192.168.1.255
 
-auto ens11
-iface ens11 inet static
-    address IP_ADDRESS3_GOES_HERE
-    network 192.168.2.0
-    netmask 255.255.255.0
-    broadcast 192.168.2.255
+#auto ens11
+#iface ens11 inet static
+#    address IP_ADDRESS3_GOES_HERE
+#    network 192.168.2.0
+#    netmask 255.255.255.0
+#    broadcast 192.168.2.255
 
-auto ens12
-iface ens12 inet static
-    address IP_ADDRESS4_GOES_HERE
-    network 192.168.3.0
-    netmask 255.255.255.0
-    broadcast 192.168.3.255
+#auto ens12
+#iface ens12 inet static
+#    address IP_ADDRESS4_GOES_HERE
+#    network 192.168.3.0
+#    netmask 255.255.255.0
+#    broadcast 192.168.3.255
 
-auto ens13
-iface ens13 inet static
-    address IP_ADDRESS5_GOES_HERE
-    network 192.168.4.0
-    netmask 255.255.255.0
-    broadcast 192.168.4.255
+#auto ens13
+#iface ens13 inet static
+#    address IP_ADDRESS5_GOES_HERE
+#    network 192.168.4.0
+#    netmask 255.255.255.0
+#    broadcast 192.168.4.255
 NET
 
 cat > etc/hosts <<NET
