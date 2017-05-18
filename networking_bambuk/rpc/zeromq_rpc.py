@@ -97,17 +97,15 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         res = None
         self._lock.acquire()
         try:
-#             LOG.debug('before send to %s in bulk mode' % self._conn)
             self._socket.send(message, zmq.NOBLOCK)
-#             LOG.debug('after send to %s in bulk mode' % self._conn)
             sockets = dict(self._poll.poll(3000))
             if self._socket in sockets:
                 res = self._socket.recv()
             else:
                 self._socket.close()
                 self.init()
-                LOG.error('message not sent for %s...' % self._conn)
-#             LOG.debug('after recv to %s in bulk mode' % self._conn)
+                LOG.error('message %s not sent for %s...' % (
+                    message, self._conn))
         finally:
             self._lock.release()
         if send_id:

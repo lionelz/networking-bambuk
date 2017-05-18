@@ -49,8 +49,31 @@ def _port_result_filter_hook(query, filters):
     return query.filter(sgpb_sg_id == val)
 
 
+# Register dict extend port attributes
+db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+    attributes.PORTS, [_extend_dict_std_attr_id])
+db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+    attributes.NETWORKS, [_extend_dict_std_attr_id])
+db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+    ext_sg.SECURITYGROUPS, [_extend_dict_std_attr_id])
+db_base_plugin_v2.NeutronDbPluginV2.register_model_query_hook(
+    models_v2.Port,
+    'add_std_attr_id',
+    _port_model_hook,
+    None,
+    _port_result_filter_hook)
+db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
+    l3.ROUTERS, [_extend_dict_std_attr_id])
+
+
 class Action(object):
     """Base class for Action handlers."""
+
+    _type_manager_property = None
+    _plugin_property = None
+    _bambuk_plugin_property = None
+    _l3_plugin_property = None
+    _notifier_property = None
 
     def __init__(self, log, bambuk_client):
         """Constructor.
@@ -63,50 +86,40 @@ class Action(object):
         super(Action, self).__init__()
         self._log = log
         self._bambuk_client = bambuk_client
-        # Register dict extend port attributes
-        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            attributes.PORTS, [_extend_dict_std_attr_id])
-        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            attributes.NETWORKS, [_extend_dict_std_attr_id])
-        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            ext_sg.SECURITYGROUPS, [_extend_dict_std_attr_id])
-        db_base_plugin_v2.NeutronDbPluginV2.register_model_query_hook(
-            models_v2.Port,
-            'add_std_attr_id',
-            _port_model_hook,
-            None,
-            _port_result_filter_hook)
-        db_base_plugin_v2.NeutronDbPluginV2.register_dict_extend_funcs(
-            l3.ROUTERS, [_extend_dict_std_attr_id])
-        self._notifier = rpc.AgentNotifierApi(topics.AGENT)
-        self._type_manager = managers.TypeManager()
+
+    @property
+    def _type_manager(self):
+        if not Action._type_manager_property:
+            Action._type_manager_property = managers.TypeManager()
+        return Action._type_manager_property
 
     @property
     def _plugin(self):
-        if not hasattr(self, '_plugin_property'):
-            pp = manager.NeutronManager.get_plugin()
-            pp._extend_dict_std_attr_id = _extend_dict_std_attr_id
-            pp._port_model_hook = _port_model_hook
-            pp._port_result_filter_hook = _port_result_filter_hook
-            self._plugin_property = pp
-        return self._plugin_property
+        if not Action._plugin_property:
+            Action._plugin_property = manager.NeutronManager.get_plugin()
+        return Action._plugin_property
 
     @property
     def _bambuk_plugin(self):
-        if not hasattr(self, '_bambuk_plugin_property'):
-            pp = manager.NeutronManager.get_service_plugins().get(
-                    'bambuk')
-            self._bambuk_plugin_property = pp
-        return self._bambuk_plugin_property
+        if not Action._bambuk_plugin_property:
+            Action._bambuk_plugin_property = (
+                manager.NeutronManager.get_service_plugins().get(
+                    'bambuk'))
+        return Action._bambuk_plugin_property
 
     @property
     def _l3_plugin(self):
-        if not hasattr(self, '_l3_plugin_property'):
-            pp = manager.NeutronManager.get_service_plugins().get(
-                    p_const.L3_ROUTER_NAT)
-            pp._extend_dict_std_attr_id = _extend_dict_std_attr_id
-            self._l3_plugin_property = pp
-        return self._l3_plugin_property
+        if not Action._l3_plugin_property:
+            Action._l3_plugin_property = (
+                manager.NeutronManager.get_service_plugins().get(
+                    p_const.L3_ROUTER_NAT))
+        return Action._l3_plugin_property
+
+    @property
+    def _notifier(self):
+        if not Action._notifier_property:
+            Action._notifier_property = rpc.AgentNotifierApi(topics.AGENT)
+        return Action._notifier_property
 
     @staticmethod
     def _get_vms(ports, exclude_ids=None):
@@ -343,26 +356,7 @@ class PortUpdateAction(Action):
         endpoints, port_db = self._get_endpoints(ctx, other_ports, port)
         if port_db:
             other_ports.remove(port_db)
-#         LOG.debug("endpoints %s" % endpoints)
 
-        for tunnel_type in agent_state['configurations']['tunnel_types']:
-            if tunnel_type in TUNNEL_TYPES:
-                driver = self._type_manager.drivers.get(
-                    TUNNEL_TYPES[tunnel_type])
-#                 LOG.debug("driver: %s" % driver)
-                if driver:
-                    tunnel = driver.obj.add_endpoint(
-                        provider_port['provider_ip'], provider_port['host_id'])
-                    # Notify all other listening agents
-                    self._notifier.tunnel_update(
-                        ctx, tunnel.ip_address, tunnel_type)
-                    # get the relevant tunnels entry
-                    entry = {'tunnels': driver.obj.get_endpoints()}
-#                     LOG.debug('entry: %s' % entry)
-                    entry['tunnel_type'] = tunnel_type
-#                     LOG.info('entry %s' % entry)
-                    endpoints.append(entry)
-#         LOG.debug('endpoints %s' % endpoints)
         port_info = port_infos.BambukPortInfo(
             port_db, other_ports, endpoints, router, router_ports)
 
@@ -371,9 +365,25 @@ class PortUpdateAction(Action):
 
         # update all other ports for the possible new endpoint
         vms = self._get_vms(other_ports, [port['id']])
-        update_connect_db = port_info.chassis_db()
-        port_info.port_db(update_connect_db)
+        update_connect_db = port_info.port_db()
+        update_connect_db = port_info.chassis_db(
+            update_connect_db, [port_info.lport['chassis']])
         self._bambuk_client.update(update_connect_db, vms)
+
+        for tunnel_type in agent_state['configurations']['tunnel_types']:
+            if tunnel_type in TUNNEL_TYPES:
+                driver = self._type_manager.drivers.get(
+                    TUNNEL_TYPES[tunnel_type])
+                if driver:
+                    tunnel = driver.obj.add_endpoint(
+                        provider_port['provider_ip'], provider_port['host_id'])
+                    # Notify all other listening agents
+                    self._notifier.tunnel_update(
+                        ctx, tunnel.ip_address, tunnel_type)
+                    # get the relevant tunnels entry
+                    entry = {'tunnels': driver.obj.get_endpoints()}
+                    entry['tunnel_type'] = tunnel_type
+                    endpoints.append(entry)
 
     def _get_router_and_ports_from_net(self, ctx, network_id):
         # Get all routable networks
@@ -418,7 +428,6 @@ class PortUpdateAction(Action):
     def _get_ports_from_router(self, ctx, router):
         networks = []
         router_ports = []
-        LOG.debug('%s' % router)
         if router['distributed']:
             router_ports = self._plugin.get_ports(
                 ctx, filters={'device_id': [router['id']]})

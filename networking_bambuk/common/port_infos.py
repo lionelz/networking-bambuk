@@ -221,7 +221,7 @@ class BambukPortInfo(object):
             })
         return c_db
 
-    def chassis_db(self, c_db_in=None):
+    def chassis_db(self, c_db_in=None, chassis_to_include=None):
         """Return a DB representation of the chassis."""
         if c_db_in:
             c_db = c_db_in
@@ -229,11 +229,12 @@ class BambukPortInfo(object):
             c_db = []
         # list of chassis
         for chassis in self.chassis:
-            c_db.append({
-                'table': 'chassis',
-                'key': chassis['id'],
-                'value': jsonutils.dumps(chassis)
-            })
+            if not chassis_to_include or chassis['id'] in chassis_to_include:
+                c_db.append({
+                    'table': 'chassis',
+                    'key': chassis['id'],
+                    'value': jsonutils.dumps(chassis)
+                })
         return c_db
 
     def lswitch_db(self, c_db_in=None):

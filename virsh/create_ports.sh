@@ -14,27 +14,27 @@ function short_source {
 
 
 NET_ID=861ed60d-2d5d-42e5-99d9-c5f0becdb4ed
-SUBNET_ID=7e959d2d-e5a5-4cc8-bbe9-4a0c43bdee3f
-NB=5
+SUBNET_ID=99273601-7119-4f7c-b380-68b2d6b09c08
+NB=250
 
 # delete all existing provider ports
 PORT_LIST=`neutron providerport-list -F id -f value`
 for p in ${PORT_LIST}; do
   neutron providerport-delete ${p}
 done
-
-# delete all existing neutron ports
-PORT_LIST=`neutron port-list -F id -f value --device-owner="compute:nova"`
-for p in ${PORT_LIST}; do
-  neutron port-delete ${p}
-done
-
-# create NB neutron port
-II=101
-while [ $II -le $((NB+100)) ]; do
-  neutron port-create --device-owner="compute:nova" --fixed-ip subnet_id=${SUBNET_ID},ip_address=10.0.0.${II} ${NET_ID}
-  II=$(($II+1))
-done
+# 
+# # delete all existing neutron ports
+# PORT_LIST=`neutron port-list -F id -f value --device-owner="compute:nova"`
+# for p in ${PORT_LIST}; do
+#   neutron port-delete ${p}
+# done
+# 
+# # create NB neutron port
+# II=1
+# while [ $II -le $((NB)) ]; do
+#   neutron port-create --device-owner="compute:nova" --fixed-ip subnet_id=${SUBNET_ID},ip_address=10.0.1.${II} ${NET_ID}
+#   II=$(($II+1))
+# done
 
 # create NB provider port
 PORT_LIST=`neutron port-list --device-owner="compute:nova" -F id -f value`
