@@ -62,21 +62,21 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
 
     def start_bulk_send(self):
         send_id = uuid.uuid4()
-        ZeroMQSenderPool.pools[send_id] = eventlet.GreenPool(20000)
+        ZeroMQSenderPool.pools[send_id] = eventlet.GreenPool(600)
         ZeroMQSenderPool.cur[send_id] = set()
         return send_id
     
+    @config.timefunc
     def loop(self, send_id):
-        eventlet.sleep(0)
-        ZeroMQSenderPool.pools[send_id].waitall()
-        del ZeroMQSenderPool.pools[send_id]
-        del ZeroMQSenderPool.cur[send_id]
+        if send_id:
+            ZeroMQSenderPool.pools[send_id].waitall()
+            del ZeroMQSenderPool.pools[send_id]
+            del ZeroMQSenderPool.cur[send_id]
 
 
 class ZeroMQSender(bambuk_rpc.BambukRpcSender):
 
     def init(self):
-        LOG.info('init')
         context = zmq.Context()
         context.setsockopt(socket.SO_REUSEADDR, 1)
         self._socket = context.socket(zmq.REQ)
@@ -84,8 +84,6 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self._socket.setsockopt(zmq.RCVTIMEO, 5)
         self._socket.setsockopt(zmq.LINGER, 0)
         self._socket.connect(self._conn)
-        self._poll = zmq.Poller()
-        self._poll.register(self._socket, zmq.POLLIN)
 
     def __init__(self, host_or_ip, port=config.listener_port()):
         super(ZeroMQSender, self).__init__()
@@ -98,14 +96,7 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         self._lock.acquire()
         try:
             self._socket.send(message, zmq.NOBLOCK)
-            sockets = dict(self._poll.poll(3000))
-            if self._socket in sockets:
-                res = self._socket.recv()
-            else:
-                self._socket.close()
-                self.init()
-                LOG.error('message %s not sent for %s...' % (
-                    message, self._conn))
+            res = self._socket.recv()
         finally:
             self._lock.release()
         if send_id:

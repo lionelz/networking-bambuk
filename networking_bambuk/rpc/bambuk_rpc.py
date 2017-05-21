@@ -35,13 +35,16 @@ class BambukAgentClient(object):
     def __init__(self):
         self._sender_pool = importutils.import_object(config.sender_pool())
 
+    @config.timefunc
     def state(self, server_conf, vm):
 #         LOG.debug('state to %s' % vm)
         return self._sender_pool.get_sender(vm).state(server_conf)
 
+    @config.timefunc
     def apply(self, connect_db, vm):
         self._sender_pool.get_sender(vm).apply(connect_db)
 
+    @config.timefunc
     def update(self, connect_db_update, vms):
         send_id = self._sender_pool.start_bulk_send()
         for vm in vms:

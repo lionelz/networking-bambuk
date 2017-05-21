@@ -1,3 +1,5 @@
+import eventlet
+
 from neutron import context as n_context
 from neutron import manager
 from neutron.api.v2 import attributes
@@ -19,6 +21,7 @@ from networking_bambuk.db.bambuk import bambuk_db
 from oslo_log import log as o_log
 
 from oslo_serialization import jsonutils
+
 
 # Defined in neutron_lib.constants
 ROUTER_INTERFACE_OWNERS = {
@@ -205,6 +208,7 @@ class Action(object):
                     })
         return endpoints, port_db
 
+    @config.timefunc
     def _get_router_and_ports_from_net(self, ctx, network_id):
         """Get rotuer attached to a network and the reachable ports.
 
@@ -342,6 +346,7 @@ class PortUpdateAction(Action):
         update_connect_db = port_info.chassis_db(
             update_connect_db, [port_info.lport['chassis']])
         self._bambuk_client.update(update_connect_db, vms)
+        eventlet.sleep(0)
 
         # get agent state
         agent_state = self._bambuk_client.state(
@@ -369,6 +374,7 @@ class PortUpdateAction(Action):
 
         self._bambuk_client.apply(
             port_info.to_db(), provider_port['provider_mgnt_ip'])
+        eventlet.sleep(0)
 
         for tunnel_type in agent_state['configurations']['tunnel_types']:
             if tunnel_type in TUNNEL_TYPES:
@@ -385,6 +391,7 @@ class PortUpdateAction(Action):
                     entry['tunnel_type'] = tunnel_type
                     endpoints.append(entry)
 
+    @config.timefunc
     def _get_router_and_ports_from_net(self, ctx, network_id):
         # Get all routable networks
         router = None
