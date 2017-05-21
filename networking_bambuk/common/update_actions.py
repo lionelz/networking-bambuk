@@ -320,6 +320,29 @@ class PortUpdateAction(Action):
             'local_ip': provider_port['provider_ip']
         }
 
+        # TODO(snapiri): At the moment we assume a network is connected
+        #                to a single router at most.
+
+        # Read all the reachable networks and the router
+        router, router_ports, other_ports = (
+            self._get_router_and_ports_from_net(ctx, port['network_id']))
+
+#         LOG.debug(port['network_id'])
+
+        endpoints, port_db = self._get_endpoints(ctx, other_ports, port)
+        if port_db:
+            other_ports.remove(port_db)
+
+        port_info = port_infos.BambukPortInfo(
+            port_db, other_ports, endpoints, router, router_ports)
+
+        # update all other ports for the possible new endpoint
+        vms = self._get_vms(other_ports, [port['id']])
+        update_connect_db = port_info.port_db()
+        update_connect_db = port_info.chassis_db(
+            update_connect_db, [port_info.lport['chassis']])
+        self._bambuk_client.update(update_connect_db, vms)
+
         # get agent state
         agent_state = self._bambuk_client.state(
             server_conf, provider_port['provider_mgnt_ip'])
@@ -344,31 +367,8 @@ class PortUpdateAction(Action):
             if not agents or len(agents) == 0:
                 return
 
-        # TODO(snapiri): At the moment we assume a network is connected
-        #                to a single router at most.
-
-        # Read all the reachable networks and the router
-        router, router_ports, other_ports = (
-            self._get_router_and_ports_from_net(ctx, port['network_id']))
-
-#         LOG.debug(port['network_id'])
-
-        endpoints, port_db = self._get_endpoints(ctx, other_ports, port)
-        if port_db:
-            other_ports.remove(port_db)
-
-        port_info = port_infos.BambukPortInfo(
-            port_db, other_ports, endpoints, router, router_ports)
-
         self._bambuk_client.apply(
             port_info.to_db(), provider_port['provider_mgnt_ip'])
-
-        # update all other ports for the possible new endpoint
-        vms = self._get_vms(other_ports, [port['id']])
-        update_connect_db = port_info.port_db()
-        update_connect_db = port_info.chassis_db(
-            update_connect_db, [port_info.lport['chassis']])
-        self._bambuk_client.update(update_connect_db, vms)
 
         for tunnel_type in agent_state['configurations']['tunnel_types']:
             if tunnel_type in TUNNEL_TYPES:
