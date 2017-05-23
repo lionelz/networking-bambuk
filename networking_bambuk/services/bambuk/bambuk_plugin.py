@@ -67,7 +67,6 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         )
         ports_j = [{
             'port_id': port_id,
-            'data_ip': data_ip,
             'mac': mac
         }]
         for pport in pports:
@@ -75,11 +74,11 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 nport = self._get_neutron_port(context, pport['port_id'])
                 ports_j.append({
                     'port_id': pport['port_id'],
-                    'data_ip': pport['provider_ip'],
                     'mac': nport['mac_address']
                 })
         vm_conf = {
             'host': instance_id,
+            'data_ip': data_ip,
             'mgnt_ip': mgnt_ip,
             'ports': ports_j
         }

@@ -64,7 +64,7 @@ def start_df(host, ports, clean_db):
     for port in ports:
         ns = 'vm%d' % i
         tap = plug_vif.plug_vif(port['port_id'], port['mac'], host, ns)
-        pid = process_exist(['dhclient'])
+        pid = process_exist(['dhclient', tap])
         if pid:
             subprocess.call(['kill', str(pid)])
         subprocess.Popen(

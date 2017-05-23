@@ -19,8 +19,7 @@ NB=3
 PREFIX_HYBRID_1="10.0.2"
 PREFIX_HYBRID_2="10.0.3"
 PREFIX_MGNT="10.10.2"
-PREFIX_DATA1="192.168."
-PREFIX_DATA2="192.168.2"
+PREFIX_DATA="192.168."
 #LIST_VMS="1/vma 2/vmb 3/vmc"
 LIST_VMS="1/vma"
 
@@ -53,16 +52,15 @@ for vm in ${LIST_VMS}; do
   II=1
   while [ $II -le $((NB)) ]; do
     ip_mgnt="${PREFIX_MGNT}${SEVER_NUM}.${II}"
+    ip_data="${PREFIX_DATA}${SEVER_NUM}.${II}"
 
     ip_hybrid_1="${PREFIX_HYBRID_1}${SEVER_NUM}.${II}"
-    ip_data1="${PREFIX_DATA1}${SEVER_NUM}.${II}"
     p=`neutron port-list --fixed-ips ip_address=${ip_hybrid_1} -F id -f value`
-    neutron providerport-create --name=${SEVER_NAME}${II} --provider-ip ${ip_data1} --provider-mgnt-ip ${ip_mgnt} ${p}
+    neutron providerport-create --name=${SEVER_NAME}-${SEVER_NUM}-${II} --provider-ip ${ip_data} --provider-mgnt-ip ${ip_mgnt} ${p}
 
     ip_hybrid_2="${PREFIX_HYBRID_2}${SEVER_NUM}.${II}"
-    ip_data2="${PREFIX_DATA2}${SEVER_NUM}.${II}"
     p=`neutron port-list --fixed-ips ip_address=${ip_hybrid_2} -F id -f value`
-    neutron providerport-create --name=${SEVER_NAME}${II} --provider-ip ${ip_data2} --provider-mgnt-ip ${ip_mgnt} ${p}
+    neutron providerport-create --name=${SEVER_NAME}-${SEVER_NUM}-${II} --provider-ip ${ip_data} --provider-mgnt-ip ${ip_mgnt} ${p}
     II=$(($II+1))
   done
 done
