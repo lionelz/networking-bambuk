@@ -5,11 +5,12 @@ TMP_PATH=$SCRIPTS_PATH/tmp
 
 
 VM=$1
-IP_SUFFIX=$2
+SERVER_NUM=$2
+IP_SUFFIX=$3
 
 if [ -z "$VM" -o -z "$IP_SUFFIX" -o "$VM" == "-h" ]; then
-  echo Please supply name and IP suffix for the new VM >&2
-  echo   e.g. new_vm100 100 >&2
+  echo Please supply name, server number and IP suffix for the new VM >&2
+  echo   e.g. new_vm100 2 100 >&2
   exit 1
 fi
 
@@ -19,12 +20,9 @@ IP_SUFFIX=$((10#$IP_SUFFIX))
 echo -- Creating configuration script
 cp $TEMPLATES_PATH/configure.sh $TMP_PATH/configure.sh.$VM
 SCRIPT="s/VM_NAME_GOES_HERE/$VM/g"
-SCRIPT="$SCRIPT;s/EXT_ADDRESS_GOES_HERE/10\.10\.21\.${IP_SUFFIX}/g"
-II=1
-while [ $II -le 5 ]; do
-  SCRIPT="$SCRIPT;s/IP_ADDRESS${II}_GOES_HERE/192\.168\.${II}\.${IP_SUFFIX}/g"
-  II=$(($II+1))
-done
+SCRIPT="$SCRIPT;s/EXT_ADDRESS_GOES_HERE/10\.10\.2${SERVER_NUM}\.${IP_SUFFIX}/g"
+SCRIPT="$SCRIPT;s/IP_ADDRESS1_GOES_HERE/192\.168\.${SERVER_NUM}\.${IP_SUFFIX}/g"
+SCRIPT="$SCRIPT;s/IP_ADDRESS2_GOES_HERE/192\.168\.2${SERVER_NUM}\.${IP_SUFFIX}/g"
 sed -i -e "$SCRIPT" $TMP_PATH/configure.sh.$VM
 chmod a+x $TMP_PATH/configure.sh.$VM
 
