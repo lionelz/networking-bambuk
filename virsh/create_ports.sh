@@ -16,8 +16,13 @@ function short_source {
 NET_ID=861ed60d-2d5d-42e5-99d9-c5f0becdb4ed
 SUBNET_ID=99273601-7119-4f7c-b380-68b2d6b09c08
 NB=3
-#PREFIXES="10.0.21./192.168.21./10.10.21./vma 10.0.22./192.168.22./10.10.22./vmb 10.0.23./192.168.23./10.10.23./vmc 10.0.24./192.168.24./10.10.24./vmd"
-PREFIXES="10.0.21./192.168.21./10.10.21./vma"
+PREFIX_HYBRID_1="10.0.2"
+PREFIX_HYBRID_2="10.0.3"
+PREFIX_MGNT="10.10.2"
+PREFIX_DATA1="192.168."
+PREFIX_DATA2="192.168.2"
+#LIST_VMS="1/vma 2/vmb 3/vmc"
+LIST_VMS="1/vma"
 
 # delete all existing provider ports
 PORT_LIST=`neutron providerport-list -F id -f value`
@@ -31,27 +36,33 @@ for p in ${PORT_LIST}; do
   neutron port-delete ${p}
 done
 
-for prefix in ${PREFIXES}; do
-  PREFIX_H=`echo ${prefix} | cut -d '/' -f 1`
-  PREFIX_P_M=`echo ${prefix} | cut -d '/' -f 2`
-  PREFIX_P=`echo ${prefix} | cut -d '/' -f 3`
-  PREFIX_VM=`echo ${prefix} | cut -d '/' -f 4`
-  # create NB neutron port
+for vm in ${LIST_VMS}; do
+  NB=`echo ${vm} | cut -d '/' -f 1`
+  NAME=`echo ${vm} | cut -d '/' -f 2`
+  # create the neutron ports
   II=1
   while [ $II -le $((NB)) ]; do
-    ip=${PREFIX_H}${II}
-    neutron port-create --device-owner="compute:nova" --device-id=${PREFIX_VM}${II} --binding:host_id=${PREFIX_VM}${II} --fixed-ip subnet_id=${SUBNET_ID},ip_address=${ip} ${NET_ID}
+    ip_hybrid_1="${PREFIX_HYBRID_1}${NB}\.${II}"
+    ip_hybrid_2="${PREFIX_HYBRID_2}${NB}\.${II}"
+    neutron port-create --device-owner="compute:nova" --device-id=${PREFIX_VM}${II} --binding:host_id=${PREFIX_VM}${II} --fixed-ip subnet_id=${SUBNET_ID},ip_address=${ip_hybrid_1} ${NET_ID}
+    neutron port-create --device-owner="compute:nova" --device-id=${PREFIX_VM}${II} --binding:host_id=${PREFIX_VM}${II} --fixed-ip subnet_id=${SUBNET_ID},ip_address=${ip_hybrid_2} ${NET_ID}
     II=$(($II+1))
   done
 
   # create NB provider port
   II=1
   while [ $II -le $((NB)) ]; do
-    ip=${PREFIX_H}${II}
-    ippm=${PREFIX_P_M}${II}
-    ipp=${PREFIX_P}${II}
-    p=`neutron port-list --fixed-ips ip_address=${ip} -F id -f value`
-    neutron providerport-create --name=${PREFIX_VM}${II} --provider-ip ${ipp} --provider-mgnt-ip ${ippm} ${p}
+    ip_mgnt="${PREFIX_MGNT}${NB}\.${II}"
+
+    ip_hybrid_1="${PREFIX_HYBRID_1}${NB}\.${II}"
+    ip_data1="${PREFIX_DATA1}${NB}\.${II}"
+    p=`neutron port-list --fixed-ips ip_address=${ip_hybrid_1} -F id -f value`
+    neutron providerport-create --name=${PREFIX_VM}${II} --provider-ip ${ip_data1} --provider-mgnt-ip ${ip_mgnt} ${p}
+
+    ip_hybrid_2="${PREFIX_HYBRID_2}${NB}\.${II}"
+    ip_data2="${PREFIX_DATA2}${NB}\.${II}"
+    p=`neutron port-list --fixed-ips ip_address=${ip_hybrid_2} -F id -f value`
+    neutron providerport-create --name=${PREFIX_VM}${II} --provider-ip ${ip_data2} --provider-mgnt-ip ${ip_mgnt} ${p}
     II=$(($II+1))
   done
 done
