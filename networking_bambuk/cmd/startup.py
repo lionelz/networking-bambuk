@@ -29,7 +29,7 @@ def process_exist(words):
     return False
 
 
-def start_df(port_id, mac, host, clean_db):
+def start_df(host, ports, clean_db):
     pid = process_exist(['df-local-controller'])
     if pid:
         subprocess.call(['kill', str(pid)])
@@ -59,15 +59,18 @@ def start_df(port_id, mac, host, clean_db):
         '--log-file', '/var/log/dragonflow.log']
     )
     time.sleep(0)
-    tap = plug_vif.plug_vif(port_id, mac, host)
-    pid = process_exist(['dhclient'])
-    if pid:
-        subprocess.call(['kill', str(pid)])
-    subprocess.Popen(
-        ['ip', 'netns', 'exec', 'vm', 'dhclient', '-nw', '-v',
-        '-pf', '/run/dhclient.%s.pid' % tap,
-        '-lf', '/var/lib/dhcp/dhclient.%s.leases' % tap, tap]
-    )
+    i = 0
+    for port in ports:
+        tap = plug_vif.plug_vif(port['port_id'], port['mac'], host)
+        pid = process_exist(['dhclient'])
+        if pid:
+            subprocess.call(['kill', str(pid)])
+        subprocess.Popen(
+            ['ip', 'netns', 'exec', 'vm%d' % i, 'dhclient', '-nw', '-v',
+            '-pf', '/run/dhclient.%s.pid' % tap,
+            '-lf', '/var/lib/dhcp/dhclient.%s.leases' % tap, tap]
+        )
+        i = i + 1
 
 
 class Startup(object):
@@ -108,7 +111,7 @@ class Startup(object):
         if 'host' in params:
             subprocess.call(['hostname', params['host']]) 
             self._write_file('/etc/hostname', params['host'])
-        start_df(params['port_id'], params['mac'], params['host'], True)
+        start_df(params['host'], params['ports'], True)
 
 
 def receive():
@@ -149,9 +152,8 @@ def main():
         c = ConfigParser.ConfigParser()
         c.read(CONFIG_FILE)
         start_df(
-            c.get('bambuk', 'port_id'),
-            c.get('bambuk', 'mac'),
             c.get('bambuk', 'host'),
+            c.get('bambuk', 'ports'),
             False
         )
 

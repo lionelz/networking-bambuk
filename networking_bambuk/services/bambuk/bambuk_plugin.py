@@ -36,11 +36,11 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
         received = None
         while not received:
             try:
-#                 LOG.debug('%d: try to send to %s:%s (%s)' % (
-#                     retry, host, port, data))
+                LOG.debug('%d: sending to %s:%s (%s)' % (
+                    retry, host, port, data))
                 context = zmq.Context()
                 _socket = context.socket(zmq.REQ)
-                _socket.connect("tcp://%s:%d" % (host, port))
+                _socket.connect('tcp://%s:%d' % (host, port))
                 _socket.send(data)
                 received = _socket.recv()
             except Exception as e:
@@ -54,17 +54,34 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 _socket.close()
 
     def _get_vm_conf(self,
+                     context,
                      instance_id,
                      port_id,
                      mgnt_ip,
                      data_ip,
                      mac):
-        vm_conf = {
-            'host': instance_id,
+        # get all port for this management ip or device_id
+        pports = self._core_plugin.get_providerports(
+            context,
+            filters={'provider_mgnt_ip': [mgnt_ip]}
+        )
+        ports_j = [{
             'port_id': port_id,
-            'mgnt_ip': mgnt_ip,
             'data_ip': data_ip,
             'mac': mac
+        }]
+        for pport in pports:
+            if pport['port_id'] != port_id:
+                nport = self._get_neutron_port(context, pport['port_id'])
+                ports_j.append({
+                    'port_id': pport['port_id'],
+                    'data_ip': pport['provider_ip'],
+                    'mac': nport['mac']
+                })
+        vm_conf = {
+            'host': instance_id,
+            'mgnt_ip': mgnt_ip,
+            'ports': ports_j
         }
         return vm_conf
 
@@ -87,7 +104,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
     def _get_neutron_port(self, context, port_id):
         # Get the neutron port
         neutron_ports = self._core_plugin.get_ports(context, 
-            filters={'id':[port_id]})
+            filters={'id': [port_id]})
         if not neutron_ports or len(neutron_ports) == 0:
             raise bambuk.ProviderPortNeutronPortNotFound(
                 providerport_id=port_id)
@@ -121,6 +138,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 pp_db.provider_mgnt_ip,
                 8080,
                 self._get_vm_conf(
+                    context,
                     neutron_port['device_id'],
                     pp_db.port_id,
                     pp_db.provider_mgnt_ip,
@@ -161,6 +179,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 pp_db.provider_mgnt_ip,
                 8080,
                 self._get_vm_conf(
+                    context,
                     neutron_port['device_id'],
                     pp_db.port_id,
                     pp_db.provider_mgnt_ip,

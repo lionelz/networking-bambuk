@@ -15,8 +15,9 @@ function short_source {
 
 NET_ID=861ed60d-2d5d-42e5-99d9-c5f0becdb4ed
 SUBNET_ID=99273601-7119-4f7c-b380-68b2d6b09c08
-NB=200
-PREFIXES="10.0.21./10.10.21./vma 10.0.22./10.10.22./vmb 10.0.23./10.10.23./vmc 10.0.24./10.10.24./vmd"
+NB=3
+#PREFIXES="10.0.21./192.168.21./10.10.21./vma 10.0.22./192.168.22./10.10.22./vmb 10.0.23./192.168.23./10.10.23./vmc 10.0.24./192.168.24./10.10.24./vmd"
+PREFIXES="10.0.21./192.168.21./10.10.21./vma"
 
 # delete all existing provider ports
 PORT_LIST=`neutron providerport-list -F id -f value`
@@ -32,8 +33,9 @@ done
 
 for prefix in ${PREFIXES}; do
   PREFIX_H=`echo ${prefix} | cut -d '/' -f 1`
-  PREFIX_P=`echo ${prefix} | cut -d '/' -f 2`
-  PREFIX_VM=`echo ${prefix} | cut -d '/' -f 3`
+  PREFIX_P_M=`echo ${prefix} | cut -d '/' -f 2`
+  PREFIX_P=`echo ${prefix} | cut -d '/' -f 3`
+  PREFIX_VM=`echo ${prefix} | cut -d '/' -f 4`
   # create NB neutron port
   II=1
   while [ $II -le $((NB)) ]; do
@@ -46,9 +48,10 @@ for prefix in ${PREFIXES}; do
   II=1
   while [ $II -le $((NB)) ]; do
     ip=${PREFIX_H}${II}
+    ippm=${PREFIX_P_M}${II}
     ipp=${PREFIX_P}${II}
     p=`neutron port-list --fixed-ips ip_address=${ip} -F id -f value`
-    neutron providerport-create --name=${PREFIX_VM}${II} --provider-ip ${ipp} --provider-mgnt-ip ${ipp} ${p}
+    neutron providerport-create --name=${PREFIX_VM}${II} --provider-ip ${ipp} --provider-mgnt-ip ${ippm} ${p}
     II=$(($II+1))
   done
 done
