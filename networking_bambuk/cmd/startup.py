@@ -5,6 +5,7 @@ import os
 import subprocess
 import threading
 import time
+import traceback
 import zmq
 
 from networking_bambuk.cmd import plug_vif
@@ -61,12 +62,13 @@ def start_df(host, ports, clean_db):
     time.sleep(0)
     i = 0
     for port in ports:
-        tap = plug_vif.plug_vif(port['port_id'], port['mac'], host)
+        ns = 'vm%d' % i
+        tap = plug_vif.plug_vif(port['port_id'], port['mac'], host, ns)
         pid = process_exist(['dhclient'])
         if pid:
             subprocess.call(['kill', str(pid)])
         subprocess.Popen(
-            ['ip', 'netns', 'exec', 'vm%d' % i, 'dhclient', '-nw', '-v',
+            ['ip', 'netns', 'exec', ns, 'dhclient', '-nw', '-v',
             '-pf', '/run/dhclient.%s.pid' % tap,
             '-lf', '/var/lib/dhcp/dhclient.%s.leases' % tap, tap]
         )
@@ -104,7 +106,7 @@ class Startup(object):
                 lines = source.readlines()                
             for i in range(len(lines)):
                 for key, value in params.iteritems():
-                    if value:
+                    if value and not type(value) is list:
                         lines[i] = lines[i].replace('##%s##' % key, value)
             self._write_file(
                 file_conf[0:file_conf.rfind('.')], lines)
@@ -138,7 +140,7 @@ def receive():
             print('sending response OK')
             _socket.send('OK')
         except:
-            pass
+            print(traceback.format_exc())
 
 
 def main():

@@ -32,7 +32,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
     @timefunc
     def _send(self, host, port, data):
         retry = 0
-        data = json.encoder.JSONEncoder().encode((data))
+        data = json.encoder.JSONEncoder().encode(data)
         received = None
         while not received:
             try:
@@ -61,7 +61,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                      data_ip,
                      mac):
         # get all port for this management ip or device_id
-        pports = self._core_plugin.get_providerports(
+        pports = self.get_providerports(
             context,
             filters={'provider_mgnt_ip': [mgnt_ip]}
         )
@@ -76,7 +76,7 @@ class BambukPlugin(common_db_mixin.CommonDbMixin,
                 ports_j.append({
                     'port_id': pport['port_id'],
                     'data_ip': pport['provider_ip'],
-                    'mac': nport['mac']
+                    'mac': nport['mac_address']
                 })
         vm_conf = {
             'host': instance_id,

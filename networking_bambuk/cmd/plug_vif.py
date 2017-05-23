@@ -56,7 +56,8 @@ def create_ovs_vif_port(bridge, dev, iface_id, mac, instance_id):
                'external-ids:attached-mac=%s' % mac,
                'external-ids:vm-uuid=%s' % instance_id])
 
-def plug_vif(iface_id, mac, instance_id):
+
+def plug_vif(iface_id, mac, instance_id, ns):
     tap = get_tap_name(iface_id)
     create_ovs_vif_port('br-int',
                         tap,
@@ -66,16 +67,17 @@ def plug_vif(iface_id, mac, instance_id):
     execute('ip', 'link', 'set', tap, 'address', mac)
     execute('ip', 'link', 'set', tap, 'up')
     execute('ip', 'link', 'set', tap, 'up')
-    execute('ip', 'netns', 'delete', 'vm')
-    execute('ip', 'netns', 'add', 'vm')
-    execute('ip', 'link', 'set', tap, 'netns', 'vm')
-    execute('ip', 'netns', 'exec', 'vm', 'ip', 'link', 'set', tap, 'up')
-    execute('ip', 'netns', 'exec', 'vm', 'ip', 'link', 'set', 'lo', 'up')
+    execute('ip', 'netns', 'delete', ns)
+    execute('ip', 'netns', 'add', ns)
+    execute('ip', 'link', 'set', tap, 'netns', ns)
+    execute('ip', 'netns', 'exec', ns, 'ip', 'link', 'set', tap, 'up')
+    execute('ip', 'netns', 'exec', ns, 'ip', 'link', 'set', 'lo', 'up')
     return tap
 
 
 def main():
-    plug_vif(sys.argv[1], sys.argv[2], sys.argv[3])
+    plug_vif(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+
 
 if __name__ == '__main__':
     main()
