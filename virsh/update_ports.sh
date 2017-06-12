@@ -1,9 +1,10 @@
 
-ports=`neutron providerport-list -f value`
+ports=`neutron port-list -f value -c id`
 IFS=$'\n'
-for pp in ${ports}; do
-   n=`echo $pp | cut -d ' ' -f 2`
-   i=`echo $pp | cut -d ' ' -f 1`
-   neutron providerport-update --name=$n $i
+
+II=1
+for i in ${ports}; do
+   neutron port-update --name=vm$II $i
+   II=$(($II+1))
 done;
 
