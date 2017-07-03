@@ -69,6 +69,8 @@ class ZeroMQSenderPool(bambuk_rpc.BambukSenderPool):
     @config.timefunc
     def loop(self, send_id):
         if send_id:
+            LOG.debug('number ................. %s ......................' % 
+                      len(ZeroMQSenderPool.cur[send_id]))
             ZeroMQSenderPool.pools[send_id].waitall()
             del ZeroMQSenderPool.pools[send_id]
             del ZeroMQSenderPool.cur[send_id]
@@ -102,7 +104,6 @@ class ZeroMQSender(bambuk_rpc.BambukRpcSender):
         if send_id:
             ZeroMQSenderPool.cur[send_id].remove(self._conn)
 #             LOG.debug('received %s....' % self._conn)
-#             LOG.debug('cur %s....' % ZeroMQSenderPool.cur[send_id])
         return res
 
     def send(self, message, send_id=None):

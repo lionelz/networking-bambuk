@@ -244,7 +244,7 @@ class Action(object):
         ports = []
         for network in networks:
             ports += self._get_network_ports(ctx, network)
-
+        LOG.info('number of ports: %d ' % len(ports))
         return router, router_ports, ports
 
     def _get_routers_for_net(self, ctx, network_id):
@@ -416,6 +416,7 @@ class PortUpdateAction(Action):
         for network in networks:
             ports += self._get_network_ports(ctx, network)
 
+        LOG.info('number of ports: %d ' % len(ports))
         return router, router_ports, ports
 
     def _get_routers_for_net(self, ctx, network_id):
